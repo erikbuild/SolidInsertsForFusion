@@ -164,10 +164,16 @@ def run(context):
             outer_native = straight_edge(native_body, 0.0, 1.0)
             outer_proxy = straight_edge(proxy_body, 5.0, 1.0)
             measure = app.measureManager
-            log(app, 'FINDING 6a (measure): native point(1,0.5,1)->native edge = {:.6f} cm; '
-                     'world point(1,5.5,1)->proxy edge = {:.6f} cm'.format(
-                         measure.measureMinimumDistance(adsk.core.Point3D.create(1.0, 0.5, 1.0), outer_native).value,
-                         measure.measureMinimumDistance(adsk.core.Point3D.create(1.0, 5.5, 1.0), outer_proxy).value))
+
+            def distance(label, point, edge):
+                try:
+                    return '{} = {:.6f} cm'.format(label, measure.measureMinimumDistance(point, edge).value)
+                except RuntimeError as error:
+                    return '{} raised: {}'.format(label, str(error).splitlines()[0])
+
+            log(app, 'FINDING 6a (measure): {}; {}'.format(
+                distance('native point(1,0.5,1)->native edge', adsk.core.Point3D.create(1.0, 0.5, 1.0), outer_native),
+                distance('world point(1,5.5,1)->proxy edge', adsk.core.Point3D.create(1.0, 5.5, 1.0), outer_proxy)))
             before_a, before_b = proxy_body.volume, proxy_body_b.volume
             timeline_before = design.timeline.count
             proxy_rim = support.rim(proxy_body, (10, 55, 10), 3)

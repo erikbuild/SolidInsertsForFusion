@@ -406,22 +406,24 @@ Each script inserts `tests/fusion` on `sys.path` and calls `importlib.reload(sup
 Geometry spike (`SolidInsertsSpike`):
 
 - **0a/0b.** A through-all cut into a component placed away from the origin raises "body not found to extrude through". This happens with the native body and with the occurrence proxy as participant. A 15 mm distance cut with the native body as participant creates the hole. Seats are distance cuts, so the add-in is unaffected. Test helpers cut component through holes with a distance deeper than the block.
-- **0c.** Pending. Does an occurrence moved with `transform2` after its body is built stay moved after the next recompute? The first fixture moved Bracket A this way, and its proxy rim was then not found at the moved position.
+- **0c.** An occurrence moved with `transform2` in a parametric design leaves a pending snapshot (translation y 3.0 cm). The next feature drops it and the occurrence returns to y = 0. This is why the first fixture's proxy rim was not at the moved position. Fixtures place occurrences when they create them.
 - **1.** `addWithoutEdges` + `project2([rim], True)` returns one `SketchCircle`. Construction works, the seat circle with a diameter dimension is fully constrained, `profiles.count == 1`, and on a top face the sketch normal · outward = 1.0.
 - **2.** The cut removed 36.835174 mm³, the analytic π/4·(4²−3²)·6.7.
 - **3.** Removed − analytic = 0.000000000 mm³; floor area − πr² = 0.000000000 mm². Volume tolerances in Global Constraints are generous.
 - **4.** After cutting rim A, rim B's old edge is still valid, and `findEntityByToken(token_b)` returns exactly one `BRepEdge` (r = 0.15 cm).
 - **5.** Names containing `·` and `×` read back unchanged.
-- **6.** Pending. Where proxy geometry lives, and whether a component cut changes both occurrences.
+- **6 (placement).** Proxy geometry is in assembly space (proxy body min y = 5.0 cm for an occurrence at y = 5.0 cm). Native geometry is in component space (min y = 0).
+- **6a.** `measureMinimumDistance(Point3D, nativeEdge)` raises "invalid argument geometryTwo" for an edge of a non-root component. Pending: the same measurement with a world point and the proxy edge.
+- **6b.** Pending. Whether a cut through the native component changes both occurrences.
 - **7a.** `feature.bodies.count == 1` and is the plate. `endFaces` holds one planar face at depth 6.700 mm with normal (0, 0, 1), pointing out of the material toward the opening.
 - **7b.** A break-through cut gives an empty `endFaces` collection (count 0), not None.
 - **8.** `findAttributes('SolidInserts', 'seat')` finds one attribute whose `parent == feature`. `feature.sideFaces` contains the seat wall.
 
 Command spike (`SolidInsertsCommandSpike`):
 
-- **1.** With a rim preselected, `activate` sees 0 selections. An `inputChanged` for the selection input follows with 1 selection, then `executePreview` with 1.
+- **1.** With a rim preselected, `activate` sees 0 selections. With no user input, an `inputChanged` for the selection input follows with 1 selection, then `executePreview` with 1. Preselected rims land in the selection input.
 - **2.** Text set on the read-only text box in `executePreview` reads back unchanged (`preview ran 1`).
-- **3.** In every run `execute` never fired, termination reason was 4 (`PreEmptedTerminationReason`), and the timeline kept the preview's sketch and seat (8 → 10).
-- **4.** Pending. Driven failing run.
-- **5.** `doExecute(True)` inside `activate` raises "can not terminate command during a command event". Retried from a custom event fired by `activate`.
+- **3.** OK after a preview with `isValidResult = True` keeps the preview's sketch and seat (8 → 10) without firing `execute`; termination reason 1. Interactive runs that ended without OK reported reason 4 (`PreEmptedTerminationReason`) and also kept the preview result.
+- **4.** OK after a preview with `isValidResult = False` fires `execute`. When `execute` cuts and then sets `executeFailed`, `commandTerminated` still sees the cut (timeline 10, reason 1), but the next command starts from timeline 8: the failed execute is rolled back.
+- **5.** `doExecute(True)` inside `activate` raises "can not terminate command during a command event". Called from a custom event that `activate` fires, it presses OK and returns True. The command can be driven from a script.
 - **6.** One `UndoCommand` took the timeline 10 → 8: the sketch and the seat are undone together.

@@ -400,3 +400,28 @@ Each script inserts `tests/fusion` on `sys.path` and calls `importlib.reload(sup
 - [ ] **Step 2: Delete** the approved files with `git rm`. Grep for leftover links with `grep -rn "SolidCraft\|\.sc\b\|README.it\|docs/readme" --include=*.md .`; only the credit lines should remain.
 - [ ] **Step 3: Run the unit tests.** Expected: all pass.
 - [ ] **Step 4: Checkpoint.** Suggested message: `Remove the SolidCraft plugin build`.
+
+## Spike Findings
+
+Geometry spike (`SolidInsertsSpike`):
+
+- **0a/0b.** A through-all cut into a component placed away from the origin raises "body not found to extrude through". This happens with the native body and with the occurrence proxy as participant. A 15 mm distance cut with the native body as participant creates the hole. Seats are distance cuts, so the add-in is unaffected. Test helpers cut component through holes with a distance deeper than the block.
+- **0c.** Pending. Does an occurrence moved with `transform2` after its body is built stay moved after the next recompute? The first fixture moved Bracket A this way, and its proxy rim was then not found at the moved position.
+- **1.** `addWithoutEdges` + `project2([rim], True)` returns one `SketchCircle`. Construction works, the seat circle with a diameter dimension is fully constrained, `profiles.count == 1`, and on a top face the sketch normal · outward = 1.0.
+- **2.** The cut removed 36.835174 mm³, the analytic π/4·(4²−3²)·6.7.
+- **3.** Removed − analytic = 0.000000000 mm³; floor area − πr² = 0.000000000 mm². Volume tolerances in Global Constraints are generous.
+- **4.** After cutting rim A, rim B's old edge is still valid, and `findEntityByToken(token_b)` returns exactly one `BRepEdge` (r = 0.15 cm).
+- **5.** Names containing `·` and `×` read back unchanged.
+- **6.** Pending. Where proxy geometry lives, and whether a component cut changes both occurrences.
+- **7a.** `feature.bodies.count == 1` and is the plate. `endFaces` holds one planar face at depth 6.700 mm with normal (0, 0, 1), pointing out of the material toward the opening.
+- **7b.** A break-through cut gives an empty `endFaces` collection (count 0), not None.
+- **8.** `findAttributes('SolidInserts', 'seat')` finds one attribute whose `parent == feature`. `feature.sideFaces` contains the seat wall.
+
+Command spike (`SolidInsertsCommandSpike`):
+
+- **1.** With a rim preselected, `activate` sees 0 selections. An `inputChanged` for the selection input follows with 1 selection, then `executePreview` with 1.
+- **2.** Text set on the read-only text box in `executePreview` reads back unchanged (`preview ran 1`).
+- **3.** In every run `execute` never fired, termination reason was 4 (`PreEmptedTerminationReason`), and the timeline kept the preview's sketch and seat (8 → 10).
+- **4.** Pending. Driven failing run.
+- **5.** `doExecute(True)` inside `activate` raises "can not terminate command during a command event". Retried from a custom event fired by `activate`.
+- **6.** One `UndoCommand` took the timeline 10 → 8: the sketch and the seat are undone together.

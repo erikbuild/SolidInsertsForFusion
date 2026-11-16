@@ -81,6 +81,21 @@ def probe_moved_component_cuts(app, root):
             label, origin.x, origin.y, origin.z, outcome))
 
 
+def probe_occurrence_move(app, design):
+    """Moves an occurrence with transform2 after building its body, then adds a feature
+    elsewhere, logging whether the move survives that recompute."""
+    root = design.rootComponent
+    occurrence = root.occurrences.addNewComponent(support.place(0, 0, 0))
+    occurrence.component.name = 'MovedProbe'
+    support.box(occurrence.component, 200, 0, 0, 210, 10, 10, 'MovedProbe')
+    occurrence.transform2 = support.place(0, 30, 0)
+    log(app, 'FINDING 0c: after transform2 translation y = {:.3f} cm, hasPendingSnapshot = {}'.format(
+        occurrence.transform2.translation.y, design.snapshots.hasPendingSnapshot))
+    support.box(root, 220, 0, 0, 230, 10, 10, 'AfterMove')
+    log(app, 'FINDING 0c: after a root feature translation y = {:.3f} cm, hasPendingSnapshot = {}'.format(
+        occurrence.transform2.translation.y, design.snapshots.hasPendingSnapshot))
+
+
 def run(context):
     app = adsk.core.Application.get()
     try:
@@ -93,15 +108,15 @@ def run(context):
         support.hole(plate, 35, 20, 18, 3)
 
         finding(app, 0, lambda: probe_moved_component_cuts(app, root))
+        finding(app, 0, lambda: probe_occurrence_move(app, design))
 
-        bracket_a = root.occurrences.addNewComponent(support.place(0, 0, 0))
+        # A through-all cut finds no body in a component placed away from the origin, so the
+        # through hole is a distance cut deeper than the 10 mm block.
+        bracket_a = root.occurrences.addNewComponent(support.place(0, 50, 0))
         bracket = bracket_a.component
         bracket.name = 'Bracket'
         block = support.box(bracket, 0, 0, 0, 20, 10, 10, 'Block')
-        support.hole(block, 10, 5, 10, 3)
-        bracket_a.transform2 = support.place(0, 50, 0)
-        log(app, 'bracket A moved after building: translation y = {:.3f} cm'.format(
-            bracket_a.transform2.translation.y))
+        support.hole(block, 10, 5, 10, 3, 15)
         bracket_b = root.occurrences.addExistingComponent(bracket, support.place(30, 50, 0))
 
         rim_a = support.rim(plate, (8, 8, 18), 3)
@@ -142,6 +157,10 @@ def run(context):
             proxy_body = bracket_a.bRepBodies.item(0)
             proxy_body_b = bracket_b.bRepBodies.item(0)
             native_body = proxy_body.nativeObject
+            log(app, 'FINDING 6 (placement): occurrence A translation y = {:.3f} cm; proxy body min y = {:.3f} cm; '
+                     'native body min y = {:.3f} cm'.format(
+                         bracket_a.transform2.translation.y, proxy_body.boundingBox.minPoint.y,
+                         native_body.boundingBox.minPoint.y))
             outer_native = straight_edge(native_body, 0.0, 1.0)
             outer_proxy = straight_edge(proxy_body, 5.0, 1.0)
             measure = app.measureManager

@@ -332,9 +332,11 @@ Each script inserts `tests/fusion` on `sys.path` and calls `importlib.reload(sup
 - Create: `SolidInserts/SolidInserts.py`, `SolidInserts/SolidInserts.manifest`, `SolidInserts/config.json`, `SolidInserts/command.py`
 - Create: `SolidInserts/resources/16x16.png`, `32x32.png`, `64x64.png` (made with `sips -z N N assets/branding/solidinserts-icon.png --out …`)
 - Create: `tests/fusion/SolidInsertsCommandTest/SolidInsertsCommandTest.py`, `.manifest`
+- Create: `SolidInserts/preview.py`
+- Modify: `tests/fusion/SolidInsertsIntegrationTest/SolidInsertsIntegrationTest.py` (preview case)
 
 **Interfaces:**
-- Consumes: `openings.read_openings`, `seats.plan_seats`/`summary_lines`, `cuts.cut_seats`, `catalog.Series`/`THREAD_CHOICES`/`AUTOMATIC`.
+- Consumes: `openings.read_openings`, `seats.plan_seats`/`summary_lines`, `cuts.cut_seats`/`resolve_rim`, `catalog.Series`/`THREAD_CHOICES`/`AUTOMATIC`.
 - Produces:
   - In `command.py`: `CMD_ID = "erikbuild_SolidInserts_insertSeats"`, `create_definition(ui) -> adsk.core.CommandDefinition` (name `Insert Seats`, tooltip `Cut seats for heat-set threaded inserts at the rims of existing holes.`, icons from `resources/`), and `delete_definition(ui) -> None`, which deletes the definition, drops the handler references and clears the openings cache.
   - Dialog inputs (id, label, setup):
@@ -344,7 +346,8 @@ Each script inserts `tests/fusion` on `sys.path` and calls `importlib.reload(sup
     - `compensation`, `Diameter compensation`: float spinner `'mm'` with min −0.1, max 0.1 (cm), step 0.01 (mm) and initial 0; tooltip `Adjustment to the seat diameter. Use 0 for the catalog dimension.`
     - `summary`, `Seats`: read-only text box, 6 rows, showing the HTML-escaped `summary_lines` joined by `<br>`.
   - Openings are cached against the current selection list, compared element by element with `==`. Only a selection change calls `read_openings` again. Settings changes re-run `plan_seats` only.
-  - Handlers: `inputChanged` (and `executePreview`, per spike finding 1/2) refreshes the summary. `validateInputs` sets `areInputsValid = plan.can_apply`. `executePreview` calls `cut_seats` and sets `isValidResult = True`; on a `SeatError` it shows the message in the summary. `execute` calls `cut_seats`; on a `SeatError` it sets `executeFailed`/`executeFailedMessage`, with cleanup per spike finding 4. Unexpected exceptions show `traceback.format_exc()` in a message box.
+  - In `preview.py`: `SeatPreview` with `show(design, plan) -> None` and `clear() -> None`. `show` clears, then draws each seat of the plan as a temporary cylinder (seat diameter × depth, from the rim centre inward) in a custom graphics group of the rim's native component, so a seat in a component shows in every occurrence. The graphics use a show-through colour effect at partial opacity and are not selectable. `clear` deletes every group it drew that is still valid. Nothing in the model changes.
+  - Handlers (per command finding 7, the model must not change while the dialog is open): the plan is made when the dialog opens and on each `inputChanged`, which also clears the preview; `validateInputs`, `executePreview` and `execute` use that plan and never read the selection. `validateInputs` sets `areInputsValid = plan.can_apply`. `executePreview` shows the plan with `SeatPreview.show` and leaves `isValidResult` False. `execute` clears the preview and calls `cut_seats`; on a `SeatError` it sets `executeFailed`/`executeFailedMessage`, which rolls the cuts back (finding 4). `destroy` clears the preview. Unexpected exceptions show `traceback.format_exc()` in a message box.
   - `SolidInserts.py`: `run(context)` / `stop(context)` place and remove the button. It follows FusionTidy's `get_or_create_custom_panel` logic, with default panel `SolidCreatePanel`, fallback `SolidScriptsAddinsPanel` and `isPromoted = True`.
   - Manifest: `{"autodeskProduct": "Fusion", "type": "addin", "id": "SolidInserts", "author": "Erik Reynolds (erikbuild)", "description": {"": "Cut seats for heat-set threaded inserts at the rims of existing holes."}, "version": "1.0.0", "runOnStartup": true, "supportedOS": "windows|mac"}`.
   - `config.json`: `{"use_custom_panel": false, "panel_id": "CustomPlugins_Panel", "panel_name": "ERIKBUILD"}`.
@@ -355,11 +358,18 @@ Each script inserts `tests/fusion` on `sys.path` and calls `importlib.reload(sup
   - One Undo restores both the volume and the timeline count.
   **If finding 5 showed the command cannot be driven from a script, STOP.** Ask Erik for explicit authorisation to replace this automated test with the Step 5 manual checklist.
 - [ ] **Step 2: [FUSION — Erik runs]** with the add-in installed but `command.py` missing. Expected: FAIL (command definition not found).
+- [ ] **Step 2a: Write the preview integration case** `test_preview` in the integration test. For `h1`, `h2` and `bracket_b` it plans the seats and calls `SeatPreview.show`. It asserts:
+  - The timeline count and the Plate volume are unchanged.
+  - The root component gains 2 graphics groups and the Bracket component 1, each holding one unselectable body.
+  - The bodies' bounding boxes, within 0.05 mm: h1 x 8–12, y 8–12, z 11.3–18; h2 x 27.15–32.85, y 7.15–12.85, z 8.9–18; Bracket (component space) x 8–12, y 3–7, z 3.3–10.
+  - `clear` removes all three groups.
+  [FUSION — Erik runs] it. Expected: FAIL (no `preview` module).
 - [ ] **Step 3: Implement** `command.py`, `SolidInserts.py`, the manifest, `config.json` and the icons.
-- [ ] **Step 4: [FUSION — Erik runs]** the end-to-end test. Expected: all pass.
+- [ ] **Step 4: [FUSION — Erik runs]** the integration test and the end-to-end test. Expected: all pass.
 - [ ] **Step 5: [FUSION — Erik checks by hand]**:
   - The button appears in Solid › Create.
-  - With `h1` + `h2` selected, the preview shows both cuts and the summary lists both seats.
+  - Selecting `h1`, waiting for the preview, then adding `h2`: no error, both seats show as see-through cylinders and the summary lists both.
+  - A `bracket_a` rim shows its seat in both bracket occurrences.
   - Changing Type to VORON shows the M4 obstacle, OK is disabled and the preview clears.
   - Cancel leaves the timeline unchanged.
   - Selecting `h6` + `h7` shows both the overlap and the edge messages.
@@ -427,3 +437,4 @@ Command spike (`SolidInsertsCommandSpike`):
 - **4.** OK after a preview with `isValidResult = False` fires `execute`. When `execute` cuts and then sets `executeFailed`, `commandTerminated` still sees the cut (timeline 10, reason 1), but the next command starts from timeline 8: the failed execute is rolled back.
 - **5.** `doExecute(True)` inside `activate` raises "can not terminate command during a command event". Called from a custom event that `activate` fires, it presses OK and returns True. The command can be driven from a script.
 - **6.** One `UndoCommand` took the timeline 10 → 8: the sketch and the seat are undone together.
+- **7.** (From the Task 7 manual check, not the spike.) `validateInputs` fires at random times (API docs) and `inputChanged` fires when a rim is added, both while the previous preview's cut is still in the model. A selected rim that the preview's seat replaced reads back from `selection.entity` as None. A preview that cuts the model therefore breaks the selection, so the preview draws custom graphics instead and the cut happens only in `execute`.

@@ -1,5 +1,5 @@
 # ABOUTME: In-Fusion integration test for SolidInserts: builds real fixture geometry, reads hole
-# ABOUTME: openings and cuts seats with the add-in code, and logs PASS/FAIL lines.
+# ABOUTME: openings, previews and cuts seats with the add-in code, and logs PASS/FAIL lines.
 import importlib
 import os
 import sys
@@ -101,6 +101,7 @@ class AddIn:
         self.openings = support.addin_module('openings')
         self.seats = support.addin_module('seats')
         self.cuts = support.addin_module('cuts')
+        self.preview = support.addin_module('preview')
 
 
 def fresh_fixture(app):
@@ -208,9 +209,56 @@ def test_inch_display_units(app, addin):
                       diameter_cm, depth.value, depth.expression))
 
 
+def box_mm(graphics):
+    box = graphics.boundingBox
+    return tuple(value * 10 for value in (box.minPoint.x, box.maxPoint.x, box.minPoint.y,
+                                          box.maxPoint.y, box.minPoint.z, box.maxPoint.z))
+
+
+def groups_after(component, count_before):
+    groups = component.customGraphicsGroups
+    return [groups.item(index) for index in range(count_before, groups.count)]
+
+
+def test_preview(app, addin):
+    check = support.check
+    design, fixture = fresh_fixture(app)
+    root = design.rootComponent
+    bracket = fixture.occurrences['bracket_a'].component
+    plate = fixture.bodies['Plate']
+    timeline_before, volume_before = design.timeline.count, plate.volume
+    root_before, bracket_before = root.customGraphicsGroups.count, bracket.customGraphicsGroups.count
+    found, errors = addin.openings.read_openings(
+        design, [fixture.rims['h1'], fixture.rims['h2'], fixture.rims['bracket_b']])
+    plan = addin.seats.plan_seats(found, addin.catalog.Series.STANDARD, addin.catalog.AUTOMATIC, 0.0, errors)
+    check(plan.can_apply, 'preview seat plan can apply {}'.format(plan.obstacles))
+
+    preview = addin.preview.SeatPreview()
+    preview.show(design, plan)
+    check(design.timeline.count == timeline_before and plate.volume == volume_before,
+          'preview leaves the timeline and the Plate unchanged')
+    root_groups, bracket_groups = groups_after(root, root_before), groups_after(bracket, bracket_before)
+    check((len(root_groups), len(bracket_groups)) == (2, 1),
+          'preview draws 2 root groups and 1 Bracket group ({}, {})'.format(len(root_groups), len(bracket_groups)))
+    expected = [('h1', (8, 12, 8, 12, 11.3, 18)),
+                ('h2', (27.15, 32.85, 7.15, 12.85, 8.9, 18)),
+                ('bracket_b in Bracket space', (8, 12, 3, 7, 3.3, 10))]
+    for (name, box), group in zip(expected, root_groups + bracket_groups):
+        graphics = group.item(0) if group.count == 1 else None
+        check(graphics is not None and not graphics.isSelectable, '{} preview is one unselectable body'.format(name))
+        actual = box_mm(graphics) if graphics else ()
+        check(close(actual, box, 0.05), '{} preview box {} mm (expected {})'.format(
+            name, tuple(round(value, 3) for value in actual), box))
+
+    preview.clear()
+    check((root.customGraphicsGroups.count, bracket.customGraphicsGroups.count) == (root_before, bracket_before),
+          'clear removes the preview groups')
+
+
 def test_cuts(app):
     addin = AddIn()
-    for case in (test_two_seats, test_single_seats, test_cavity, test_bracket, test_inch_display_units):
+    for case in (test_two_seats, test_single_seats, test_cavity, test_bracket, test_inch_display_units,
+                 test_preview):
         try:
             case(app, addin)
         except Exception:

@@ -43,6 +43,7 @@ class OpeningsCache:
 
 
 _openings = OpeningsCache()
+_plan = None
 
 
 def create_definition(ui):
@@ -59,12 +60,14 @@ def create_definition(ui):
 
 
 def delete_definition(ui):
+    global _plan
     definition = ui.commandDefinitions.itemById(CMD_ID)
     if definition:
         definition.deleteMe()
     _handlers.clear()
     _command_handlers.clear()
     _openings.clear()
+    _plan = None
 
 
 def active_design():
@@ -116,13 +119,21 @@ def show_summary(inputs, plan):
     adsk.core.TextBoxCommandInput.cast(inputs.itemById('summary')).formattedText = summary_html(plan)
 
 
+def refresh_plan(inputs):
+    """Plans seats for the dialog's inputs and shows them. The other command events use this plan,
+    because Fusion can fire them while the preview's cuts have replaced the selected rims."""
+    global _plan
+    _plan = current_plan(inputs)
+    show_summary(inputs, _plan)
+
+
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
     def notify(self, args):
         try:
             _openings.clear()
             command = args.command
             add_inputs(command.commandInputs)
-            show_summary(command.commandInputs, current_plan(command.commandInputs))
+            refresh_plan(command.commandInputs)
             _command_handlers.clear()
             for event, handler in ((command.inputChanged, InputChangedHandler()),
                                    (command.validateInputs, ValidateInputsHandler()),
@@ -138,7 +149,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
     def notify(self, args):
         try:
             if args.input.id != 'summary':
-                show_summary(args.inputs, current_plan(args.inputs))
+                refresh_plan(args.inputs)
         except Exception:
             show_unexpected_error()
 
@@ -146,7 +157,7 @@ class InputChangedHandler(adsk.core.InputChangedEventHandler):
 class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
     def notify(self, args):
         try:
-            args.areInputsValid = current_plan(args.inputs).can_apply
+            args.areInputsValid = _plan.can_apply
         except Exception:
             args.areInputsValid = False
             show_unexpected_error()
@@ -158,13 +169,12 @@ class ExecutePreviewHandler(adsk.core.CommandEventHandler):
     def notify(self, args):
         try:
             inputs = args.command.commandInputs
-            plan = current_plan(inputs)
-            show_summary(inputs, plan)
+            show_summary(inputs, _plan)
             try:
-                cut_seats(active_design(), plan)
+                cut_seats(active_design(), _plan)
                 args.isValidResult = True
             except SeatError as error:
-                show_summary(inputs, dataclasses.replace(plan, obstacles=plan.obstacles + (str(error),)))
+                show_summary(inputs, dataclasses.replace(_plan, obstacles=_plan.obstacles + (str(error),)))
         except Exception:
             show_unexpected_error()
 
@@ -174,7 +184,7 @@ class ExecuteHandler(adsk.core.CommandEventHandler):
 
     def notify(self, args):
         try:
-            cut_seats(active_design(), current_plan(args.command.commandInputs))
+            cut_seats(active_design(), _plan)
         except SeatError as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)

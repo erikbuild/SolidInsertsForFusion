@@ -1,0 +1,6 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "scriptType": "python",
+    "description": "Integration tests for reading hole openings and cutting insert seats."
+}

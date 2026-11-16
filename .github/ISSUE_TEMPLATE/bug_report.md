@@ -1,21 +1,20 @@
 ---
-name: Bug report / Segnalazione
-about: Report a problem with SolidInserts
+name: Bug report
+about: Report a problem with SolidInserts for Fusion
 title: ""
 labels: ""
 assignees: ""
 ---
 
-**Versions / Versioni**
+**Versions**
 - SolidInserts:
-- SolidCraft:
+- Fusion (Help › About):
 - OS:
-- Stock SolidCraft or patched desktop / SolidCraft standard o con patch:
 
-**How to reproduce / Come riprodurre**
+**How to reproduce**
 
-Include the series, thread size, diameter compensation and which hole rims you selected. A small shareable `.sc` sample is useful.
+Include the series, thread size, diameter compensation and which hole rims you selected. A small shared Fusion design is useful.
 
-**Expected and actual result / Risultato atteso e ottenuto**
+**Expected and actual result**
 
-Include any message the plugin displayed.
+Include any message from the **Seats** box or any error dialog.

@@ -1,4 +1,4 @@
-name: Build and test
+name: Test
 
 on:
   push:
@@ -10,28 +10,11 @@ permissions:
   contents: read
 
 jobs:
-  plugin:
+  unit:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
-      - name: Prepare the WebAssembly build tools
-        run: |
-          rustup target add wasm32-unknown-unknown
-          archive=wasm-tools-1.263.0-x86_64-linux.tar.gz
-          curl --fail --silent --show-error --location --retry 3 \
-            --output "$RUNNER_TEMP/$archive" \
-            "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.263.0/$archive"
-          printf '%s  %s\n' 21c036c1740a0552124c79c6e2170cb61c5b016005671a6d5bc06cf642165431 \
-            "$RUNNER_TEMP/$archive" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
-          printf '%s\n' "$RUNNER_TEMP/wasm-tools-1.263.0-x86_64-linux" >> "$GITHUB_PATH"
-      - name: Run Rust tests
-        run: cargo test --locked
-      - name: Build and verify the plugin ZIP and preview kit
-        run: |
-          bash ./build.sh
-          bash ./package-preview-kit.sh
-          cd dist
-          sha256sum --check solidinserts-*.zip.sha256
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests/unit -v

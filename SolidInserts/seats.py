@@ -1,5 +1,6 @@
 # ABOUTME: Plans a batch of insert seats from hole openings: sizes each seat from the catalog,
 # ABOUTME: collects what blocks or warns about it, and phrases the dialog summary.
+import html
 from dataclasses import dataclass, field
 
 from .catalog import Insert, choose
@@ -114,3 +115,8 @@ def summary_lines(plan):
     lines.extend(plan.obstacles)
     lines.extend(message('note_line', note=note) for note in plan.notes)
     return lines
+
+
+def summary_html(plan):
+    """The summary lines as text for the dialog's rich text box."""
+    return '<br>'.join(html.escape(line) for line in summary_lines(plan))

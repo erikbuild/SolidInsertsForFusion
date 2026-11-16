@@ -1,0 +1,12 @@
+{
+    "autodeskProduct": "Fusion",
+    "type": "addin",
+    "id": "SolidInserts",
+    "author": "Erik Reynolds (erikbuild)",
+    "description": {
+        "": "Cut seats for heat-set threaded inserts at the rims of existing holes."
+    },
+    "version": "1.0.0",
+    "runOnStartup": true,
+    "supportedOS": "windows|mac"
+}

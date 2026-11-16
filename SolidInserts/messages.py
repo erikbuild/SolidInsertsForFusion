@@ -29,6 +29,18 @@ TEMPLATES = {
     'profile_name': 'Profile {name}',
     'seat_line': 'Hole {ordinal} · {thread} · Ø{diameter:.2f} × {depth:.2f} mm',
     'note_line': 'Note: {note}',
+    'command_name': 'Insert Seats',
+    'command_tooltip': 'Cut seats for heat-set threaded inserts at the rims of existing holes.',
+    'holes_label': 'Holes',
+    'series_label': 'Type',
+    'series_tooltip': 'Short Version for M3, M4 and M5. VORON M3 × 5 × 4 for M3.',
+    'thread_label': 'Screw thread',
+    'thread_tooltip': ('Automatic matches the nominal hole diameter within ±0.05 mm. '
+                       'For clearance holes, choose the screw size.'),
+    'compensation_label': 'Diameter compensation',
+    'compensation_tooltip': 'Adjustment to the seat diameter. Use 0 for the catalog dimension.',
+    'summary_label': 'Seats',
+    'unexpected_error': 'SolidInserts stopped because of an unexpected error:\n{details}',
 }
 
 

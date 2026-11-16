@@ -3,7 +3,7 @@
 import unittest
 
 from SolidInserts.catalog import AUTOMATIC, Series
-from SolidInserts.seats import Opening, plan_seats, summary_lines
+from SolidInserts.seats import Opening, plan_seats, summary_html, summary_lines
 
 
 def opening(ordinal=1, body='Plate', plane='top', center=(10.0, 10.0, 18.0), outward=(0.0, 0.0, 1.0),
@@ -104,6 +104,10 @@ class SummaryLinesTest(unittest.TestCase):
             'Note: Hole 1 on Plate. The opening has 0.50 mm of material to the nearest edge. '
             'The catalog specifies 1.60 mm.',
         ])
+
+    def test_html_escapes_each_line_and_breaks_between_them(self):
+        self.assertEqual(summary_html(plan(M3, rim_errors=('Hole 2 on A&B <1>. X.',))),
+                         'Hole 1 · M3 × 0.50 · Ø4.00 × 6.70 mm<br>Hole 2 on A&amp;B &lt;1&gt;. X.')
 
 
 if __name__ == '__main__':

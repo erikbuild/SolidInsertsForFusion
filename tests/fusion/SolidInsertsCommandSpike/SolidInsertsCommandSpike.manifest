@@ -1,0 +1,6 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "scriptType": "python",
+    "description": "Checks the command dialog lifecycle the Insert Seats command relies on."
+}

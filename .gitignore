@@ -5,3 +5,4 @@ __pycache__/
 /assets/branding/solidinserts-banner.svg
 /assets/branding/solidinserts-icon.*
 /assets/branding/solidinserts-logo*.png
+.DS_Store

@@ -1,0 +1,6 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "scriptType": "python",
+    "description": "Checks the Fusion geometry API behaviours the SolidInserts port relies on."
+}

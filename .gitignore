@@ -3,3 +3,4 @@ __pycache__/
 /assets/branding/solidinserts-icon.*
 /assets/branding/solidinserts-logo*.png
 .DS_Store
+.vscode/

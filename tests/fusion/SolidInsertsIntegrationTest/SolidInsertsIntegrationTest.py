@@ -201,9 +201,11 @@ def test_inch_display_units(app, addin):
     diameters = [adsk.fusion.SketchDiameterDimension.cast(dimension)
                  for dimension in profile_sketch(feature).sketchDimensions]
     diameter_cm = [dimension.parameter.value for dimension in diameters if dimension]
-    depth_cm = adsk.fusion.DistanceExtentDefinition.cast(feature.extentOne).distance.value
-    support.check(len(diameter_cm) == 1 and close(diameter_cm[0], 0.4) and close(depth_cm, 0.67),
-                  'inch display units keep Ø4 × 6.7 mm: {} cm, {} cm'.format(diameter_cm, depth_cm))
+    depth = adsk.fusion.DistanceExtentDefinition.cast(feature.extentOne).distance
+    # A cut against the sketch normal stores a negative distance; its size is the seat depth.
+    support.check(len(diameter_cm) == 1 and close(diameter_cm[0], 0.4) and close(abs(depth.value), 0.67),
+                  'inch display units keep Ø4 × 6.7 mm: {} cm, {} cm ({!r})'.format(
+                      diameter_cm, depth.value, depth.expression))
 
 
 def test_cuts(app):

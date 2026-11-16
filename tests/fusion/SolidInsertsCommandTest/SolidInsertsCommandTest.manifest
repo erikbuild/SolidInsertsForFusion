@@ -1,0 +1,6 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "scriptType": "python",
+    "description": "End-to-end test of the Insert Seats command in the running SolidInserts add-in."
+}

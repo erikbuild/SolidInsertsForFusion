@@ -31,7 +31,7 @@ To put the button in its own toolbar panel, set `use_custom_panel` to `true` in 
 
 1. Open **Solid › Create › Insert Seats**.
 2. Click the circular rim of each hole on the side where the insert goes. Click a selected rim again to remove it.
-3. Choose **Type**, **Screw thread** and **Diameter compensation**. The viewport previews the cuts, and **Seats** lists the diameter and depth of each seat and anything that blocks the batch.
+3. Choose **Type**, **Screw thread** and **Diameter compensation**. The viewport shows each planned seat as a see-through cylinder, and **Seats** lists the diameter and depth of each seat and anything that blocks the batch.
 4. Click **OK**.
 
 ## Supported inserts

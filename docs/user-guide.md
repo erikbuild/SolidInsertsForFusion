@@ -30,7 +30,7 @@ One run uses the same series and compensation for every selected hole. Automatic
 
 1. Open **Solid › Create › Insert Seats**. Rims you selected before opening the command are already in **Holes**.
 2. Click the circular rim of each hole, where the cylindrical wall meets the flat face. Click a selected rim again to remove it.
-3. Set **Type**, **Screw thread** and **Diameter compensation**. The viewport previews the cuts as you change the selection or settings.
+3. Set **Type**, **Screw thread** and **Diameter compensation**. The viewport shows each planned seat as a see-through orange cylinder and updates it as you change the selection or settings.
 4. Read the **Seats** box. It lists each hole with its thread, seat diameter and depth, then anything that blocks the batch and any notes. **OK** stays disabled while something blocks the batch.
 5. Click **OK** to apply the cuts, or **Cancel** to leave the design unchanged.
 

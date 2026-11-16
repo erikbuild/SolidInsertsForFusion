@@ -1,6 +1,5 @@
 # ABOUTME: The Insert Seats command: a dialog that reads the selected hole rims, plans seats from the
-# ABOUTME: chosen insert type, thread and compensation, previews the cuts and keeps them on OK.
-import dataclasses
+# ABOUTME: chosen insert type, thread and compensation, previews the seats and cuts them on OK.
 import os
 import traceback
 
@@ -12,6 +11,7 @@ from .cuts import cut_seats
 from .geometry import round_mm
 from .messages import SeatError, message
 from .openings import MM_PER_CM, read_openings
+from .preview import SeatPreview
 from .seats import plan_seats, summary_html
 
 CMD_ID = 'erikbuild_SolidInserts_insertSeats'
@@ -44,6 +44,7 @@ class OpeningsCache:
 
 _openings = OpeningsCache()
 _plan = None
+_preview = SeatPreview()
 
 
 def create_definition(ui):
@@ -67,6 +68,7 @@ def delete_definition(ui):
     _handlers.clear()
     _command_handlers.clear()
     _openings.clear()
+    _preview.clear()
     _plan = None
 
 
@@ -120,11 +122,12 @@ def show_summary(inputs, plan):
 
 
 def refresh_plan(inputs):
-    """Plans seats for the dialog's inputs and shows them. The other command events use this plan,
-    because Fusion can fire them while the preview's cuts have replaced the selected rims."""
+    """Plans seats for the dialog's inputs, lists them and clears the drawn seats until the next
+    preview. The other command events use this plan, so only an input change reads the model."""
     global _plan
     _plan = current_plan(inputs)
     show_summary(inputs, _plan)
+    _preview.clear()
 
 
 class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
@@ -138,7 +141,8 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             for event, handler in ((command.inputChanged, InputChangedHandler()),
                                    (command.validateInputs, ValidateInputsHandler()),
                                    (command.executePreview, ExecutePreviewHandler()),
-                                   (command.execute, ExecuteHandler())):
+                                   (command.execute, ExecuteHandler()),
+                                   (command.destroy, DestroyHandler())):
                 event.add(handler)
                 _command_handlers.append(handler)
         except Exception:
@@ -164,30 +168,36 @@ class ValidateInputsHandler(adsk.core.ValidateInputsEventHandler):
 
 
 class ExecutePreviewHandler(adsk.core.CommandEventHandler):
-    """Cuts the seats as the preview. A valid preview is kept as the result when OK is pressed."""
+    """Draws the planned seats without changing the model, so the selected rims stay valid."""
 
     def notify(self, args):
         try:
-            inputs = args.command.commandInputs
-            show_summary(inputs, _plan)
-            try:
-                cut_seats(active_design(), _plan)
-                args.isValidResult = True
-            except SeatError as error:
-                show_summary(inputs, dataclasses.replace(_plan, obstacles=_plan.obstacles + (str(error),)))
+            if _plan.can_apply:
+                _preview.show(active_design(), _plan)
         except Exception:
             show_unexpected_error()
 
 
 class ExecuteHandler(adsk.core.CommandEventHandler):
-    """Cuts the seats when there is no valid preview to keep. Fusion rolls back a failed execute."""
+    """Cuts the planned seats when OK is pressed. Fusion rolls back a failed execute."""
 
     def notify(self, args):
         try:
+            _preview.clear()
             cut_seats(active_design(), _plan)
         except SeatError as error:
             args.executeFailed = True
             args.executeFailedMessage = str(error)
         except Exception:
             args.executeFailed = True
+            show_unexpected_error()
+
+
+class DestroyHandler(adsk.core.CommandEventHandler):
+    """Removes the drawn seats when the dialog closes, whether by OK or Cancel."""
+
+    def notify(self, args):
+        try:
+            _preview.clear()
+        except Exception:
             show_unexpected_error()

@@ -1,7 +1,4 @@
-/target/
-/dist/
 __pycache__/
-/.codex-attachments/
 /assets/branding/solidinserts-banner.svg
 /assets/branding/solidinserts-icon.*
 /assets/branding/solidinserts-logo*.png

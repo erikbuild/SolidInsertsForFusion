@@ -129,7 +129,8 @@ def run(context):
             return
         design = support.new_design(app)
         fixture = support.build_fixture(design)
-        _state.update(design=design, timeline=design.timeline.count, volume=plate_volume(), undo_sent=False)
+        _state.update(design=design, timeline=design.timeline.count, undo_sent=False)
+        _state['volume'] = plate_volume()
 
         created = CreatedHandler()
         definition.commandCreated.add(created)

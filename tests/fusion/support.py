@@ -219,11 +219,14 @@ def build_fixture(design):
     fixture.bodies['CavityBlock'] = cavity
     fixture.rims['cavity'] = rim(cavity, (110, 10, 18), 3)
 
-    bracket_a = root.occurrences.addNewComponent(place(0, 60, 0))
+    # Component geometry is built at the origin, then the occurrence is moved: a through-all
+    # cut into a component whose occurrence is already moved finds no body.
+    bracket_a = root.occurrences.addNewComponent(place(0, 0, 0))
     bracket = bracket_a.component
     bracket.name = 'Bracket'
     bracket_body = box(bracket, 0, 0, 0, 20, 10, 10, 'Bracket')
     hole(bracket_body, 10, 5, 10, 3)
+    bracket_a.transform2 = place(0, 60, 0)
     bracket_b = root.occurrences.addExistingComponent(bracket, place(30, 60, 0))
     fixture.occurrences.update({'bracket_a': bracket_a, 'bracket_b': bracket_b})
     fixture.rims['bracket_a'] = rim(bracket_a.bRepBodies.item(0), (10, 65, 10), 3)

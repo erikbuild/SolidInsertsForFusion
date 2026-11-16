@@ -47,6 +47,40 @@ def straight_edge(body, y_cm, z_cm):
     raise LookupError('No straight edge at y={} z={}'.format(y_cm, z_cm))
 
 
+def probe_moved_component_cuts(app, root):
+    """Cuts Ø3 holes into a component placed away from the origin three ways and logs which
+    ones create a hole, to show which space Fusion evaluates component cuts in."""
+    occurrence = root.occurrences.addNewComponent(support.place(0, 80, 0))
+    probe = occurrence.component
+    probe.name = 'Probe'
+    block = support.box(probe, 0, 0, 0, 20, 10, 10, 'Probe')
+    box_min = block.boundingBox.minPoint
+    log(app, 'FINDING 0a: native probe body bounding box min = ({:.3f}, {:.3f}, {:.3f}) cm, '
+             'assemblyContext is None: {}'.format(box_min.x, box_min.y, box_min.z, block.assemblyContext is None))
+    attempts = [
+        (4, 'native body, through all', [block], None),
+        (10, 'occurrence proxy body, through all', [block.createForAssemblyContext(occurrence)], None),
+        (16, 'native body, 15 mm distance', [block], support.cm(15)),
+    ]
+    for x, label, bodies, distance_cm in attempts:
+        sketch = probe.sketches.add(support.plane_at(probe, 10))
+        origin = sketch.sketchToModelSpace(adsk.core.Point3D.create(0, 0, 0))
+        sketch.sketchCurves.sketchCircles.addByCenterRadius(
+            adsk.core.Point3D.create(support.cm(x), support.cm(5), 0), support.cm(3) / 2)
+        try:
+            support.extrude(probe, sketch.profiles.item(0), adsk.fusion.FeatureOperations.CutFeatureOperation,
+                            distance_cm, adsk.fusion.ExtentDirections.NegativeExtentDirection, bodies)
+            try:
+                support.rim(block, (x, 5, 10), 3)
+                outcome = 'hole created'
+            except LookupError:
+                outcome = 'feature added but NO hole in the native body'
+        except Exception as error:
+            outcome = 'raised: {}'.format(str(error).splitlines()[0])
+        log(app, 'FINDING 0b ({}): sketch origin in model space = ({:.3f}, {:.3f}, {:.3f}) cm -> {}'.format(
+            label, origin.x, origin.y, origin.z, outcome))
+
+
 def run(context):
     app = adsk.core.Application.get()
     try:
@@ -58,16 +92,17 @@ def run(context):
         support.hole(plate, 20, 8, 18, 3, 7)
         support.hole(plate, 35, 20, 18, 3)
 
-        place = adsk.core.Matrix3D.create()
-        place.translation = adsk.core.Vector3D.create(0, 5.0, 0)
-        bracket_a = root.occurrences.addNewComponent(place)
+        finding(app, 0, lambda: probe_moved_component_cuts(app, root))
+
+        bracket_a = root.occurrences.addNewComponent(support.place(0, 0, 0))
         bracket = bracket_a.component
         bracket.name = 'Bracket'
         block = support.box(bracket, 0, 0, 0, 20, 10, 10, 'Block')
         support.hole(block, 10, 5, 10, 3)
-        place_b = adsk.core.Matrix3D.create()
-        place_b.translation = adsk.core.Vector3D.create(3.0, 5.0, 0)
-        bracket_b = root.occurrences.addExistingComponent(bracket, place_b)
+        bracket_a.transform2 = support.place(0, 50, 0)
+        log(app, 'bracket A moved after building: translation y = {:.3f} cm'.format(
+            bracket_a.transform2.translation.y))
+        bracket_b = root.occurrences.addExistingComponent(bracket, support.place(30, 50, 0))
 
         rim_a = support.rim(plate, (8, 8, 18), 3)
         rim_b = support.rim(plate, (20, 8, 18), 3)

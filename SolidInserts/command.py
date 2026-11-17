@@ -11,6 +11,7 @@ from .cuts import cut_seats
 from .geometry import round_mm
 from .messages import SeatError, message
 from .openings import MM_PER_CM, read_openings
+from .openings_cache import OpeningsCache
 from .preview import SeatPreview
 from .seats import plan_seats, summary_html
 
@@ -21,28 +22,7 @@ _handlers = []
 _command_handlers = []
 
 
-class OpeningsCache:
-    """The openings read for the last selection, so changing a setting does not read the model again."""
-
-    def __init__(self):
-        self.clear()
-
-    def clear(self):
-        self.rims = None
-        self.result = None
-
-    def read(self, design, rims):
-        if not self.matches(rims):
-            self.rims = rims
-            self.result = read_openings(design, rims)
-        return self.result
-
-    def matches(self, rims):
-        return (self.rims is not None and len(rims) == len(self.rims)
-                and all(rim == cached for rim, cached in zip(rims, self.rims)))
-
-
-_openings = OpeningsCache()
+_openings = OpeningsCache(read_openings)
 _plan = None
 _preview = SeatPreview()
 

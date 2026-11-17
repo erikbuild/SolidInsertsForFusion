@@ -41,7 +41,7 @@ TEMPLATES = {
     'command_tooltip': 'Cut seats for heat-set threaded inserts at the rims of existing holes.',
     'holes_label': 'Holes',
     'series_label': 'Type',
-    'series_tooltip': 'Short Version for M3, M4 and M5. VORON M3 × 5 × 4 for M3.',
+    'series_tooltip': 'Short Version for M3, M4, M5, M6 and M8. VORON M3 × 5 × 4 for M3.',
     'thread_label': 'Screw thread',
     'thread_tooltip': ('Automatic matches the nominal hole diameter within ±0.05 mm. '
                        'For clearance holes, choose the screw size.'),

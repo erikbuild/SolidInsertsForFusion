@@ -36,17 +36,19 @@ To put the button in its own toolbar panel, set `use_custom_panel` to `true` in 
 
 ## Supported inserts
 
-SolidInserts is an independent add-in with no affiliation with CNC Kitchen. The seat dimensions for the listed inserts are based on the dimension sheet published by CNC Kitchen.
+SolidInserts is an independent add-in with no affiliation with CNC Kitchen. The seat dimensions for the listed inserts are based on the dimension sheet published by CNC Kitchen, except the VORON seat diameter.
 
 | CNC Kitchen series | Screw sizes | M3 seat example (diameter × depth) |
 | --- | --- | --- |
-| Standard | M2, M2.5, M3, M4, M5, M6, M8, M10 | Ø4 × 6.7 mm |
-| Short Version | M3, M4, M5 | Ø4 × 4 mm |
-| VORON M3 × 5 × 4 | M3 | Ø4.4 × 5 mm |
+| Standard | M1.6, M2, M2.5, M3, M4, M5, M6, M8, M10 | Ø4 × 6.7 mm |
+| Short Version | M3, M4, M5, M6, M8 | Ø4 × 4 mm |
+| VORON M3 × 5 × 4 | M3 | Ø4.6 × 5 mm |
+
+The VORON seat is Ø4.6 mm, the insert hole Voron Design uses for M3 × 5 × 4 inserts throughout its [Downdraft toolhead](https://github.com/VoronDesign/voron-downdraft) CAD. CNC Kitchen's sheet gives Ø4.45 mm; set **Diameter compensation** to −0.15 mm for that size.
 
 Automatic sizing matches the hole diameter to a nominal thread diameter within ±0.05 mm. For clearance holes or tap drills, choose the screw size manually. For example, choose M3 for a Ø3.2 mm M3 clearance hole. One insert series applies to the batch. Automatic sizing can choose a different thread size for each hole.
 
-Seat depth equals insert length plus 1 mm. The diameter compensation defaults to zero and changes only the diameter. **Chamfer top edge** is on by default and adds a 0.4 mm 45° lead-in at each seat opening; set **Chamfer size** from 0.1 to 2 mm. Print a test piece to fine-tune the fit. [CNC Kitchen dimensions and design guidelines](https://cnckitchen.com/s/CNCKitchen_Heat-Set-Insert-Dimensions-and-Design-Guidelines.pdf).
+Seat depth equals insert length plus 1 mm. The diameter compensation defaults to zero and changes only the diameter. **Chamfer top edge** is on by default and adds a 0.4 mm 45° lead-in at each seat opening; set **Chamfer size** from 0.1 to 2 mm. Print a test piece to fine-tune the fit. [CNC Kitchen dimensions and design guidelines](assets/cnc-kitchen/dimensions-and-design-guidelines.png) (CNC Kitchen's [current sheet](https://cdn.shopify.com/s/files/1/0654/4821/4767/files/Dimensions_and_Guidlines.png), shown on its [insert product pages](https://cnckitchen.store/products/gewindeeinsatz-threaded-insert-set-standard-200-stk-pcs)).
 
 ## What SolidInserts checks
 

@@ -16,9 +16,11 @@ Use a design that captures design history. Use a cylindrical hole that opens dir
 
 | Series | Supported screw threads | M3 seat (diameter × depth) |
 | --- | --- | --- |
-| Standard | M2, M2.5, M3, M4, M5, M6, M8, M10 | Ø4 × 6.7 mm |
-| Short Version | M3, M4, M5 | Ø4 × 4 mm |
-| VORON M3 × 5 × 4 | M3 | Ø4.4 × 5 mm |
+| Standard | M1.6, M2, M2.5, M3, M4, M5, M6, M8, M10 | Ø4 × 6.7 mm |
+| Short Version | M3, M4, M5, M6, M8 | Ø4 × 4 mm |
+| VORON M3 × 5 × 4 | M3 | Ø4.6 × 5 mm |
+
+The VORON seat is Ø4.6 mm, the insert hole Voron Design uses for M3 × 5 × 4 inserts throughout its [Downdraft toolhead](https://github.com/VoronDesign/voron-downdraft) CAD. CNC Kitchen's sheet gives Ø4.45 mm; set **Diameter compensation** to −0.15 mm for that size.
 
 **Screw thread** sets the screw thread. **Automatic (nominal Ø)** compares each selected hole diameter with the nominal thread diameter within ±0.05 mm. A Ø3 mm hole gives M3, and a Ø4 mm hole gives M4. For clearance and tap-drill holes, choose the intended screw thread explicitly. For example, choose **M3 × 0.50** for a Ø3.2 mm M3 clearance hole.
 

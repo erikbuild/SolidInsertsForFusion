@@ -22,6 +22,7 @@ class Thread:
 
 
 THREADS = (
+    Thread('M1.6 × 0.35', 1.6),
     Thread('M2 × 0.40', 2.0),
     Thread('M2.5 × 0.45', 2.5),
     Thread('M3 × 0.50', 3.0),
@@ -34,8 +35,10 @@ THREADS = (
 
 THREAD_CHOICES = (AUTOMATIC, *(thread.label for thread in THREADS))
 
-# CNC Kitchen, Dimensions & Design Guidelines. Values are L, D2 and W in mm.
+# CNC Kitchen, Dimensions & Design Guidelines. Values are L, D2 and W in mm, except the VORON D2,
+# which is the Ø4.6 mm insert hole in Voron Design's Downdraft toolhead CAD (CNC Kitchen gives 4.45).
 SEAT_DIMENSIONS = {
+    (Series.STANDARD, 1.6): (2.5, 2.2, 1.3),
     (Series.STANDARD, 2.0): (3.0, 3.2, 1.3),
     (Series.STANDARD, 2.5): (4.0, 4.0, 1.6),
     (Series.STANDARD, 3.0): (5.7, 4.0, 1.6),
@@ -47,7 +50,9 @@ SEAT_DIMENSIONS = {
     (Series.SHORT, 3.0): (3.0, 4.0, 1.6),
     (Series.SHORT, 4.0): (4.0, 5.7, 2.1),
     (Series.SHORT, 5.0): (5.8, 6.5, 2.6),
-    (Series.VORON, 3.0): (4.0, 4.4, 1.6),
+    (Series.SHORT, 6.0): (6.8, 8.1, 3.3),
+    (Series.SHORT, 8.0): (6.8, 9.7, 4.5),
+    (Series.VORON, 3.0): (4.0, 4.6, 1.6),
 }
 
 

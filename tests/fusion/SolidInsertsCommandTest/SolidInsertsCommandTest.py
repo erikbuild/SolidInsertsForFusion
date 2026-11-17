@@ -1,8 +1,9 @@
-# ABOUTME: End-to-end Fusion test for the running SolidInserts add-in: preselects two hole rims, opens
-# ABOUTME: Insert Seats, presses OK from the script, and checks the seats, the timeline and one Undo.
+# ABOUTME: End-to-end Fusion test for the running SolidInserts add-in: preselects two hole rims, opens Insert
+# ABOUTME: Seats, checks the preview through a Type change, presses OK, and checks the seats and one Undo.
 import importlib
 import os
 import sys
+import time
 import traceback
 
 import adsk
@@ -15,14 +16,23 @@ importlib.reload(support)
 
 TAG = 'SolidInsertsCommandTest'
 CMD_ID = 'erikbuild_SolidInserts_insertSeats'
-PRESS_OK_EVENT = 'SolidInsertsCommandTestPressOK'
+STEP_EVENT = 'SolidInsertsCommandTestStep'
+STANDARD = 'Standard'
+VORON = 'VORON M3 × 5 × 4'
+PREVIEW_TIMEOUT_S = 3.0
+# The preview graphics groups each dialog step waits for, and the check it logs.
+STEP_PREVIEWS = {
+    'preselected': (2, 'the preview draws both seats ({} groups)'),
+    'voron': (0, 'VORON clears the preview ({} groups)'),
+    'standard': (2, 'switching back to Standard draws both seats again ({} groups)'),
+}
 EXPECTED_NAMES = ['Profile Insert M3 × 5.7', 'SolidInserts · Insert M3 × 5.7',
                   'Profile Insert M4 × 8.1', 'SolidInserts · Insert M4 × 8.1']
 EXPECTED_REMOVED_MM3 = 36.835 + 117.856
 
 _handlers = []
 _state = {'design': None, 'command': None, 'timeline': 0, 'volume': 0.0, 'undo_sent': False,
-          'created': None, 'terminated': None}
+          'created': None, 'terminated': None, 'deadline': 0.0}
 
 
 def app_ui():
@@ -32,6 +42,22 @@ def app_ui():
 
 def plate_volume():
     return _state['design'].rootComponent.bRepBodies.itemByName('Plate').volume
+
+
+def preview_groups():
+    return _state['design'].rootComponent.customGraphicsGroups.count
+
+
+def choose_series(name):
+    series = adsk.core.DropDownCommandInput.cast(_state['command'].commandInputs.itemById('series'))
+    for index in range(series.listItems.count):
+        if series.listItems.item(index).name == name:
+            series.listItems.item(index).isSelected = True
+
+
+def start_step(step):
+    _state['deadline'] = time.monotonic() + PREVIEW_TIMEOUT_S
+    adsk.core.Application.get().fireCustomEvent(STEP_EVENT, step)
 
 
 def new_timeline_names():
@@ -62,18 +88,36 @@ class CreatedHandler(adsk.core.CommandCreatedEventHandler):
 class ActivateHandler(adsk.core.CommandEventHandler):
     @guarded
     def notify(self, args):
-        # OK cannot be pressed inside a command event, so a custom event presses it once Fusion is idle.
-        app, _ = app_ui()
-        app.fireCustomEvent(PRESS_OK_EVENT)
+        # OK cannot be pressed inside a command event, so custom events drive the dialog once Fusion is idle.
+        start_step('preselected')
 
 
-class PressOkHandler(adsk.core.CustomEventHandler):
+class StepHandler(adsk.core.CustomEventHandler):
+    """Waits until the preview shows the groups the step expects, then changes the dialog for the next step."""
+
     @guarded
     def notify(self, args):
-        holes = adsk.core.SelectionCommandInput.cast(_state['command'].commandInputs.itemById('holes'))
-        support.check(holes is not None and holes.selectionCount == 2,
-                      'both preselected rims are in Holes ({})'.format(holes.selectionCount if holes else '-'))
-        support.check(_state['command'].doExecute(True), 'OK pressed from the script')
+        step = args.additionalInfo
+        expected, label = STEP_PREVIEWS[step]
+        groups = preview_groups()
+        if groups != expected and time.monotonic() < _state['deadline']:
+            adsk.core.Application.get().fireCustomEvent(STEP_EVENT, step)
+            return
+        support.check(groups == expected, label.format(groups))
+        if step == 'preselected':
+            holes = adsk.core.SelectionCommandInput.cast(_state['command'].commandInputs.itemById('holes'))
+            support.check(holes is not None and holes.selectionCount == 2,
+                          'both preselected rims are in Holes ({})'.format(holes.selectionCount if holes else '-'))
+            choose_series(VORON)
+            start_step('voron')
+        elif step == 'voron':
+            choose_series(STANDARD)
+            start_step('standard')
+        else:
+            pressed = _state['command'].doExecute(True)
+            support.check(pressed, 'OK pressed from the script')
+            if not pressed:
+                finish()
 
 
 class TerminatedHandler(adsk.core.ApplicationCommandEventHandler):
@@ -86,6 +130,7 @@ class TerminatedHandler(adsk.core.ApplicationCommandEventHandler):
             removed = (_state['volume'] - plate_volume()) * 1000
             support.check(abs(removed - EXPECTED_REMOVED_MM3) <= 0.02,
                           'Plate loses {:.3f} mm3 (expected {:.3f})'.format(removed, EXPECTED_REMOVED_MM3))
+            support.check(preview_groups() == 0, 'OK removes the preview ({} groups)'.format(preview_groups()))
             _state['undo_sent'] = True
             ui.commandDefinitions.itemById('UndoCommand').execute()
         elif args.commandId == 'UndoCommand' and _state['undo_sent']:
@@ -106,7 +151,7 @@ def remove_handlers():
         ui.commandTerminated.remove(_state['terminated'])
     _state['created'] = _state['terminated'] = None
     try:
-        app.unregisterCustomEvent(PRESS_OK_EVENT)
+        app.unregisterCustomEvent(STEP_EVENT)
     except RuntimeError:
         pass  # Nothing is registered when the test stopped before registering it.
     _handlers.clear()
@@ -136,10 +181,10 @@ def run(context):
         definition.commandCreated.add(created)
         terminated = TerminatedHandler()
         ui.commandTerminated.add(terminated)
-        press_ok = PressOkHandler()
-        app.registerCustomEvent(PRESS_OK_EVENT).add(press_ok)
+        step = StepHandler()
+        app.registerCustomEvent(STEP_EVENT).add(step)
         _state.update(created=created, terminated=terminated)
-        _handlers.extend([created, terminated, press_ok])
+        _handlers.extend([created, terminated, step])
 
         ui.activeSelections.clear()
         ui.activeSelections.add(fixture.rims['h1'])

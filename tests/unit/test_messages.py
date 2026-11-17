@@ -28,8 +28,8 @@ class MessageTest(unittest.TestCase):
             'series_label': 'Type',
             'series_tooltip': 'Short Version for M3, M4, M5, M6 and M8. VORON M3 × 5 × 4 for M3.',
             'thread_label': 'Screw thread',
-            'thread_tooltip': ('Automatic matches the nominal hole diameter within ±0.05 mm. '
-                               'For clearance holes, choose the screw size.'),
+            'thread_tooltip': ('Automatic matches each hole to the nominal or ISO 273 clearance diameter '
+                               'of a screw, within ±0.05 mm. For tap-drill holes, choose the screw size.'),
             'compensation_label': 'Diameter compensation',
             'compensation_tooltip': 'Adjustment to the seat diameter. Use 0 for the catalog dimension.',
             'chamfer_label': 'Chamfer top edge',

@@ -44,11 +44,20 @@ class PlanSeatsTest(unittest.TestCase):
     def test_same_opening_twice_makes_one_seat(self):
         self.assertEqual(len(plan(M3, opening(ordinal=2)).seats), 1)
 
-    def test_automatic_needs_a_nominal_hole(self):
-        clearance_hole = opening(diameter=3.2)
-        self.assertEqual(plan(clearance_hole).obstacles,
-                         ('Hole 1 on Plate. Hole Ø3.20 mm. Select the screw thread explicitly.',))
-        self.assertEqual(plan(clearance_hole, thread='M3 × 0.50').seats[0].diameter, 4.0)
+    def test_automatic_needs_a_recognised_hole(self):
+        unrecognised_hole = opening(diameter=3.3)
+        self.assertEqual(plan(unrecognised_hole).obstacles,
+                         ('Hole 1 on Plate. Hole Ø3.30 mm. Select the screw thread explicitly.',))
+        self.assertEqual(plan(unrecognised_hole, thread='M3 × 0.50').seats[0].diameter, 4.0)
+
+    def test_automatic_clearance_hole_plans_a_seat(self):
+        result = plan(opening(diameter=3.2))
+        self.assertEqual([(s.insert.thread, s.diameter) for s in result.seats], [('M3 × 0.50', 4.0)])
+        self.assertEqual(result.obstacles, ())
+
+    def test_coarse_clearance_wider_than_the_seat(self):
+        self.assertEqual(plan(opening(diameter=12.0)).obstacles,
+                         ('Hole 1 on Plate. The Ø12.00 seat must be wider than the Ø12.00 mm hole.',))
 
     def test_seat_must_be_wider_than_the_hole(self):
         self.assertEqual(plan(opening(diameter=4.0), thread='M3 × 0.50').obstacles,
@@ -144,11 +153,11 @@ class SummaryLinesTest(unittest.TestCase):
                          ['Hole 1 · M3 × 0.50 · Ø4.00 × 6.70 mm · 0.40 mm chamfer'])
 
     def test_obstacles_then_notes(self):
-        lines = summary_lines(plan(opening(clearance=2.5), opening(ordinal=2, diameter=3.2,
+        lines = summary_lines(plan(opening(clearance=2.5), opening(ordinal=2, diameter=3.3,
                                                                      center=(30.0, 10.0, 18.0))))
         self.assertEqual(lines, [
             'Hole 1 · M3 × 0.50 · Ø4.00 × 6.70 mm',
-            'Hole 2 on Plate. Hole Ø3.20 mm. Select the screw thread explicitly.',
+            'Hole 2 on Plate. Hole Ø3.30 mm. Select the screw thread explicitly.',
             'Note: Hole 1 on Plate. The opening has 0.50 mm of material to the nearest edge. '
             'The catalog specifies 1.60 mm.',
         ])

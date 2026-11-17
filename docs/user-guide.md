@@ -22,7 +22,7 @@ Use a design that captures design history. Use a cylindrical hole that opens dir
 
 The VORON seat is Ø4.6 mm, the insert hole Voron Design uses for M3 × 5 × 4 inserts throughout its [Downdraft toolhead](https://github.com/VoronDesign/voron-downdraft) CAD. CNC Kitchen's sheet gives Ø4.45 mm; set **Diameter compensation** to −0.15 mm for that size.
 
-**Screw thread** sets the screw thread. **Automatic (nominal Ø)** compares each selected hole diameter with the nominal thread diameter within ±0.05 mm. A Ø3 mm hole gives M3, and a Ø4 mm hole gives M4. For clearance and tap-drill holes, choose the intended screw thread explicitly. For example, choose **M3 × 0.50** for a Ø3.2 mm M3 clearance hole.
+**Screw thread** sets the screw thread. **Automatic (from hole Ø)** recognises each selected hole drawn at a thread's nominal diameter or at one of its ISO 273 clearance sizes (fine, medium or coarse), within ±0.05 mm. A Ø3 mm or Ø3.2 mm hole gives M3, and a Ø4 mm or Ø4.5 mm hole gives M4. Where the two coincide, the nominal thread wins: a Ø10 mm hole is M10, not an M8 coarse clearance hole. For tap-drill holes, choose the intended screw thread explicitly. For example, choose **M3 × 0.50** for a Ø2.5 mm M3 tap-drill hole, which Automatic reads as M2.5.
 
 One run uses the same series and compensation for every selected hole. Automatic mode can resolve different thread sizes in that batch if the series supports all of them. A manual thread choice applies to the whole batch. Use separate runs for different series, different compensation values, or different manually assigned threads.
 
@@ -42,7 +42,7 @@ One run uses the same series and compensation for every selected hole. Automatic
 
 After a run, inspect the `Profile Insert …` sketches, `SolidInserts · Insert …` cuts and `SolidInserts · Chamfer Insert …` chamfers in the timeline. Edit the sketch dimension to change the seat diameter, the extrusion distance to change its depth, or the chamfer distance to change the chamfer. One **Undo** immediately after the run removes the whole batch.
 
-For example, on a plate with a Ø3 mm blind hole 7 mm deep and a Ø4 mm through hole, select both top rims and run **Standard** with **Automatic (nominal Ø)** and **0 mm** compensation. The result is an M3 seat of **Ø4 × 6.7 mm** and an M4 seat of **Ø5.7 × 9.1 mm**, each with the default **0.4 mm** chamfer.
+For example, on a plate with a Ø3 mm blind hole 7 mm deep and a Ø4 mm through hole, select both top rims and run **Standard** with **Automatic (from hole Ø)** and **0 mm** compensation. The result is an M3 seat of **Ø4 × 6.7 mm** and an M4 seat of **Ø5.7 × 9.1 mm**, each with the default **0.4 mm** chamfer.
 
 ## Troubleshooting
 
@@ -52,7 +52,7 @@ For example, on a plate with a Ø3 mm blind hole 7 mm deep and a Ø4 mm through 
 | **SolidInserts needs design history** | The design is in direct modeling mode. Right-click the top of the browser and choose **Capture Design History**. |
 | A rim is refused | Click the circular edge where the cylindrical wall meets the flat face, on the side where the insert goes. Chamfered or countersunk openings and rims on curved faces are not supported. |
 | **OK** is disabled | Read the **Seats** box. It lists every problem that blocks the batch. |
-| Automatic sizing fails, or a thread is unavailable | Select the screw thread explicitly for a clearance or tap-drill hole. If the intended size is unavailable in the chosen series, use a compatible series and matching insert. |
+| Automatic sizing fails, or a thread is unavailable | Select the screw thread explicitly for a tap-drill hole or a hole that is neither a nominal nor an ISO 273 clearance size. If the intended size is unavailable in the chosen series, use a compatible series and matching insert. |
 | The seat is narrower than the hole or reaches an edge or another seat | Check the original hole size and compensation. If the selected insert needs more space, revise the hole spacing or surrounding material. |
 | The chamfer reaches an edge, or the chamfers of two seats overlap | The plain seats fit, but their chamfered openings do not. Reduce **Chamfer size** or clear **Chamfer top edge**. |
 | There is too little depth | Check the body thickness and any internal cavities. Use a shorter compatible insert or revise the part to leave enough material under the seat. |

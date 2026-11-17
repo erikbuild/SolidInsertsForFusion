@@ -5,7 +5,7 @@ from enum import Enum
 
 from .messages import SeatError, message
 
-AUTOMATIC = 'Automatic (nominal Ø)'
+AUTOMATIC = 'Automatic (from hole Ø)'
 AUTO_TOLERANCE_MM = 0.05
 
 
@@ -19,18 +19,20 @@ class Series(Enum):
 class Thread:
     label: str
     nominal_mm: float
+    clearance_mm: tuple
 
 
+# Clearance diameters are ISO 273 fine, medium and coarse.
 THREADS = (
-    Thread('M1.6 × 0.35', 1.6),
-    Thread('M2 × 0.40', 2.0),
-    Thread('M2.5 × 0.45', 2.5),
-    Thread('M3 × 0.50', 3.0),
-    Thread('M4 × 0.70', 4.0),
-    Thread('M5 × 0.80', 5.0),
-    Thread('M6 × 1.00', 6.0),
-    Thread('M8 × 1.25', 8.0),
-    Thread('M10 × 1.50', 10.0),
+    Thread('M1.6 × 0.35', 1.6, (1.7, 1.8, 2.0)),
+    Thread('M2 × 0.40', 2.0, (2.2, 2.4, 2.6)),
+    Thread('M2.5 × 0.45', 2.5, (2.7, 2.9, 3.1)),
+    Thread('M3 × 0.50', 3.0, (3.2, 3.4, 3.6)),
+    Thread('M4 × 0.70', 4.0, (4.3, 4.5, 4.8)),
+    Thread('M5 × 0.80', 5.0, (5.3, 5.5, 5.8)),
+    Thread('M6 × 1.00', 6.0, (6.4, 6.6, 7.0)),
+    Thread('M8 × 1.25', 8.0, (8.4, 9.0, 10.0)),
+    Thread('M10 × 1.50', 10.0, (10.5, 11.0, 12.0)),
 )
 
 THREAD_CHOICES = (AUTOMATIC, *(thread.label for thread in THREADS))
@@ -70,12 +72,18 @@ class Insert:
         return self.length_mm + 1.0
 
 
+def matches_hole(diameter_mm, hole_diameter_mm):
+    return abs(diameter_mm - hole_diameter_mm) <= AUTO_TOLERANCE_MM + 1e-8
+
+
 def choose(series, thread_label, hole_diameter_mm):
-    """The insert for a series and thread. Automatic picks the thread whose nominal
-    diameter matches the hole within AUTO_TOLERANCE_MM."""
+    """The insert for a series and thread. Automatic picks the thread whose nominal diameter
+    matches the hole within AUTO_TOLERANCE_MM, or failing that, the thread with a matching
+    clearance diameter, so a nominal match wins where the two coincide."""
     if thread_label == AUTOMATIC:
-        thread = next((t for t in THREADS
-                       if abs(t.nominal_mm - hole_diameter_mm) <= AUTO_TOLERANCE_MM + 1e-8), None)
+        thread = (next((t for t in THREADS if matches_hole(t.nominal_mm, hole_diameter_mm)), None)
+                  or next((t for t in THREADS
+                           if any(matches_hole(d, hole_diameter_mm) for d in t.clearance_mm)), None))
     else:
         thread = next((t for t in THREADS if t.label == thread_label), None)
     if thread is None:

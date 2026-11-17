@@ -42,12 +42,38 @@ class ChooseTest(unittest.TestCase):
     def test_automatic_finds_m1_6(self):
         self.assertEqual(choose(Series.STANDARD, AUTOMATIC, 1.6).thread, 'M1.6 × 0.35')
 
-    def test_automatic_rejects_clearance_holes(self):
+    def test_automatic_matches_iso_273_clearance_holes(self):
+        clearance_holes = {
+            'M1.6 × 0.35': (1.7, 1.8),
+            'M2 × 0.40': (2.2, 2.4, 2.6),
+            'M2.5 × 0.45': (2.7, 2.9, 3.1),
+            'M3 × 0.50': (3.2, 3.4, 3.6),
+            'M4 × 0.70': (4.3, 4.5, 4.8),
+            'M5 × 0.80': (5.3, 5.5, 5.8),
+            'M6 × 1.00': (6.4, 6.6, 7.0),
+            'M8 × 1.25': (8.4, 9.0),
+            'M10 × 1.50': (10.5, 11.0, 12.0),
+        }
+        for thread, diameters in clearance_holes.items():
+            for diameter in diameters:
+                self.assertEqual(choose(Series.STANDARD, AUTOMATIC, diameter).thread, thread, diameter)
+
+    def test_clearance_tolerance_edge(self):
+        self.assertEqual(choose(Series.STANDARD, AUTOMATIC, 3.25).thread, 'M3 × 0.50')
+
+    def test_nominal_wins_over_clearance(self):
+        self.assertEqual(choose(Series.STANDARD, AUTOMATIC, 2.0).thread, 'M2 × 0.40')
+        self.assertEqual(choose(Series.STANDARD, AUTOMATIC, 10.0).thread, 'M10 × 1.50')
+
+    def test_automatic_refuses_unrecognised_holes(self):
         with self.assertRaises(SeatError) as raised:
-            choose(Series.STANDARD, AUTOMATIC, 3.2)
-        self.assertEqual(str(raised.exception), 'Hole Ø3.20 mm. Select the screw thread explicitly.')
-        with self.assertRaises(SeatError):
-            choose(Series.STANDARD, AUTOMATIC, 4.5)
+            choose(Series.STANDARD, AUTOMATIC, 3.3)
+        self.assertEqual(str(raised.exception), 'Hole Ø3.30 mm. Select the screw thread explicitly.')
+
+    def test_automatic_clearance_hole_with_voron(self):
+        insert = choose(Series.VORON, AUTOMATIC, 3.2)
+        self.assertEqual(insert.bore_mm, 4.6)
+        self.assertAlmostEqual(insert.depth_mm, 5.0, places=9)
 
     def test_manual_thread_outside_the_series_is_refused(self):
         with self.assertRaises(SeatError) as raised:
@@ -85,7 +111,7 @@ class ChooseTest(unittest.TestCase):
 class ChoicesTest(unittest.TestCase):
     def test_thread_choices_start_with_automatic(self):
         self.assertEqual(THREAD_CHOICES, (
-            'Automatic (nominal Ø)', 'M1.6 × 0.35', 'M2 × 0.40', 'M2.5 × 0.45', 'M3 × 0.50', 'M4 × 0.70',
+            'Automatic (from hole Ø)', 'M1.6 × 0.35', 'M2 × 0.40', 'M2.5 × 0.45', 'M3 × 0.50', 'M4 × 0.70',
             'M5 × 0.80', 'M6 × 1.00', 'M8 × 1.25', 'M10 × 1.50'))
 
     def test_series_order_and_labels(self):

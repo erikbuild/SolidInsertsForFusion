@@ -174,6 +174,7 @@ def test_single_seats(app, addin):
         ('h8', 'Plate', None, 55.920, 11.3),
         ('h2_bottom', 'Plate', None, 117.856, 9.1),
         ('thin', 'ThinPlate', addin.catalog.Series.SHORT, 21.991, 1.0),
+        ('h3', 'Plate', None, 30.310, 11.3),
     ]
     for rim_name, body_name, series, removed_mm3, floor_z_mm in cases:
         design, fixture = fresh_fixture(app)

@@ -104,6 +104,12 @@ def expected_cut_volume_mm3(seat_diameter, seat_depth, hole_diameter, bore_depth
                           - hole_diameter ** 2 * min(seat_depth, bore_depth))
 
 
+def expected_chamfer_volume_mm3(seat_diameter, chamfer):
+    """Material a 45° chamfer removes at a seat's mouth: a ring of right-triangle section with legs
+    chamfer, whose centroid sits a third of the way out from the seat wall."""
+    return math.pi * chamfer ** 2 * (seat_diameter / 2 + chamfer / 3)
+
+
 def cut_volume_matches(removed_mm3, expected_mm3):
     return abs(removed_mm3 - expected_mm3) <= max(0.005, expected_mm3 * 0.0005)
 

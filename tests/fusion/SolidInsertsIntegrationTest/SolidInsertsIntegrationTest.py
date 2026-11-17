@@ -251,6 +251,22 @@ def test_chamfer_failure(app, addin):
                   'a 7 mm chamfer down the 6.7 mm seat wall is refused {!r}'.format(raised))
 
 
+def test_chamfer_breach(app, addin):
+    # A 1 mm chamfer at h5 runs past the plate edge 0.5 mm from the seat wall, so it removes less
+    # material than a full chamfer although Fusion makes it without an error.
+    design, fixture = fresh_fixture(app)
+    plan = plan_rims(addin, design, [fixture.rims['h5']], chamfer=0.4)
+    plan = dataclasses.replace(plan, seats=tuple(dataclasses.replace(seat, chamfer=1.0) for seat in plan.seats))
+    try:
+        addin.cuts.cut_seats(design, plan)
+        raised = None
+    except addin.messages.SeatError as error:
+        raised = str(error)
+    support.check(raised == 'Hole 1 on Plate. The chamfer meets an edge, a cavity or another hole at the seat '
+                            'opening. Make it smaller or turn it off.',
+                  'a 1 mm chamfer past the plate edge is refused {!r}'.format(raised))
+
+
 def test_inch_display_units(app, addin):
     design, fixture = fresh_fixture(app)
     design.fusionUnitsManager.distanceDisplayUnits = adsk.fusion.DistanceUnits.InchDistanceUnits
@@ -338,7 +354,7 @@ def test_preview_chamfer(app, addin):
 def test_cuts(app):
     addin = AddIn()
     for case in (test_two_seats, test_single_seats, test_cavity, test_bracket, test_chamfered_seats,
-                 test_chamfer_clearance, test_chamfer_failure, test_inch_display_units, test_preview,
+                 test_chamfer_clearance, test_chamfer_failure, test_chamfer_breach, test_inch_display_units, test_preview,
                  test_preview_chamfer):
         try:
             case(app, addin)

@@ -56,7 +56,7 @@ SolidInserts accepts cylindrical holes with a circular, unchamfered entrance on 
 - A through hole keeps a section of the original bore below the seat. A blind hole with a flat floor can be deepened to fit the insert.
 - Seats in one batch must not overlap.
 - With **Chamfer top edge** on, the chamfered opening must also clear nearby edges and the other seats.
-- After each cut, SolidInserts compares the removed volume with the expected volume and checks the seat floor, so a cut that meets an edge, a cavity or another hole is refused.
+- After each cut and chamfer, SolidInserts compares the removed volume with the expected volume and checks the seat floor, so a cut or chamfer that meets an edge, a cavity or another hole is refused.
 - A hole inside a component gets its seat in the component, so every instance of that component shows it. Holes in linked components are edited in their own design.
 - A hole that already has a SolidInserts seat is refused. Edit that seat in the timeline instead.
 

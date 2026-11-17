@@ -29,6 +29,8 @@ TEMPLATES = {
     'cut_intersects': 'The seat intersects an edge, a cavity or another hole at the requested depth.',
     'cut_no_floor': 'The seat has no floor at the requested depth. Check the thickness or use a shorter insert.',
     'chamfer_failed': 'The chamfer could not be cut at the seat opening. Make it smaller or turn it off.',
+    'chamfer_intersects': ('The chamfer meets an edge, a cavity or another hole at the seat opening. '
+                           'Make it smaller or turn it off.'),
     'insert_name': 'Insert {product}',
     'profile_name': 'Profile {name}',
     'chamfer_name': 'Chamfer {name}',

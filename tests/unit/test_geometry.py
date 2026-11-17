@@ -4,7 +4,7 @@ import math
 import unittest
 
 from SolidInserts.geometry import (BoreEdge, Circle, Cylinder, PlanarFace, bore_end, cut_direction,
-                                   cut_volume_matches, expected_cut_volume_mm3, is_floor,
+                                   cut_volume_matches, expected_chamfer_volume_mm3, expected_cut_volume_mm3, is_floor,
                                    is_hole_entrance, round_mm)
 
 UP = (0.0, 0.0, 1.0)
@@ -76,6 +76,12 @@ class CutTest(unittest.TestCase):
         self.assertAlmostEqual(expected_cut_volume_mm3(4.0, 6.7, 3.0, 7.0), 36.835, places=3)
         self.assertAlmostEqual(expected_cut_volume_mm3(5.7, 9.1, 4.0, 18.0), 117.856, places=3)
         self.assertAlmostEqual(expected_cut_volume_mm3(4.0, 6.7, 3.0, 4.0), 55.920, places=3)
+
+    def test_expected_chamfer_volume(self):
+        # The ring of material a 45° chamfer removes from the mouth of a seat: pi * c^2 * (r + c / 3).
+        self.assertAlmostEqual(expected_chamfer_volume_mm3(4.0, 0.4), 1.072, places=3)
+        self.assertAlmostEqual(expected_chamfer_volume_mm3(5.7, 0.4), 1.500, places=3)
+        self.assertAlmostEqual(expected_chamfer_volume_mm3(4.0, 1.0), 7.330, places=3)
 
     def test_cut_volume_tolerance(self):
         self.assertTrue(cut_volume_matches(36.853, 36.835))

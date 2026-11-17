@@ -5,8 +5,8 @@ import json
 import adsk.core
 import adsk.fusion
 
-from .geometry import (TOLERANCE_MM, cut_direction, cut_volume_matches, expected_cut_volume_mm3, is_floor,
-                       norm, sub)
+from .geometry import (TOLERANCE_MM, cut_direction, cut_volume_matches, expected_chamfer_volume_mm3,
+                       expected_cut_volume_mm3, is_floor, norm, sub)
 from .messages import SeatError, message
 from .openings import MM_PER_CM, circle_of, entrance_faces, mm_point, normal_at
 from .seats import SEAT_ATTRIBUTE_GROUP, SEAT_ATTRIBUTE_NAME, SEAT_NAME_PREFIX
@@ -58,12 +58,13 @@ def cut_seat(design, seat):
     }))
     check_cut(feature, body, volume_before, seat)
     if seat.chamfer:
-        chamfer_mouth(component, feature, seat)
+        chamfer_mouth(component, body, feature, seat)
     return feature
 
 
-def chamfer_mouth(component, feature, seat):
-    """Chamfers the seat's mouth, the edge where the seat wall meets the face the hole opens onto."""
+def chamfer_mouth(component, body, feature, seat):
+    """Chamfers the seat's mouth, the edge where the seat wall meets the face the hole opens onto,
+    and checks that the chamfer removed a full ring of material."""
     mouths = [edge for face in feature.sideFaces for edge in face.edges
               if is_at(circle_of(edge), seat.opening.center)]
     if len(mouths) != 1:
@@ -74,6 +75,7 @@ def chamfer_mouth(component, feature, seat):
     chamfer_input = chamfers.createInput2()
     chamfer_input.chamferEdgeSets.addEqualDistanceChamferEdgeSet(
         edges, adsk.core.ValueInput.createByString(f'{seat.chamfer} mm'), False)
+    volume_before = body.volume
     try:
         chamfer = chamfers.add(chamfer_input)
     except RuntimeError:
@@ -81,6 +83,9 @@ def chamfer_mouth(component, feature, seat):
     if chamfer is None:
         raise SeatError(message('chamfer_failed'))
     chamfer.name = SEAT_NAME_PREFIX + message('chamfer_name', name=seat.name)
+    removed_mm3 = (volume_before - body.volume) * MM3_PER_CM3
+    if not cut_volume_matches(removed_mm3, expected_chamfer_volume_mm3(seat.diameter, seat.chamfer)):
+        raise SeatError(message('chamfer_intersects'))
     return chamfer
 
 

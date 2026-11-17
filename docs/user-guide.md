@@ -55,6 +55,6 @@ For example, on a plate with a Ø3 mm blind hole 7 mm deep and a Ø4 mm through 
 | The chamfer reaches an edge, or the chamfers of two seats overlap | The plain seats fit, but their chamfered openings do not. Reduce **Chamfer size** or clear **Chamfer top edge**. |
 | There is too little depth | Check the body thickness and any internal cavities. Use a shorter compatible insert or revise the part to leave enough material under the seat. |
 | The cut fails after **OK** | The seat met an edge, a cavity or another hole, or broke through the part. Check the material around and below the hole. |
-| **The chamfer could not be cut** after **OK** | Fusion could not fit the chamfer at the seat opening. Reduce **Chamfer size** or clear **Chamfer top edge**. |
+| **The chamfer could not be cut**, or **meets an edge, a cavity or another hole**, after **OK** | The chamfer did not fit at the seat opening, or broke into material hidden just below the face. Reduce **Chamfer size** or clear **Chamfer top edge**. |
 | The hole already has a SolidInserts seat | Edit the existing sketch and cut in the timeline. |
 | The hole is in a linked component | Open the linked design and add the seat there. |

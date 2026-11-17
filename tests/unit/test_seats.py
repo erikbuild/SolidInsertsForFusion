@@ -17,8 +17,8 @@ M3 = opening()
 M4 = opening(ordinal=2, center=(30.0, 10.0, 18.0), diameter=4.0, bore_depth=18.0, can_deepen=False)
 
 
-def plan(*openings, series=Series.STANDARD, thread=AUTOMATIC, compensation=0.0, rim_errors=()):
-    return plan_seats(openings, series, thread, compensation, rim_errors)
+def plan(*openings, series=Series.STANDARD, thread=AUTOMATIC, compensation=0.0, rim_errors=(), chamfer=None):
+    return plan_seats(openings, series, thread, compensation, rim_errors, chamfer_mm=chamfer)
 
 
 class PlanSeatsTest(unittest.TestCase):
@@ -81,6 +81,50 @@ class PlanSeatsTest(unittest.TestCase):
         self.assertEqual(plan(first, opening(ordinal=2, center=(43.5, 20.0, 18.0),
                                              outward=(0.0, 0.0, -1.0))).obstacles, ())
 
+    def test_chamfer_is_carried_on_each_seat(self):
+        chamfered, = plan(M3, chamfer=0.4).seats
+        plain, = plan(M3).seats
+        self.assertEqual((chamfered.chamfer, chamfered.mouth_diameter), (0.4, 4.8))
+        self.assertEqual((plain.chamfer, plain.mouth_diameter), (None, 4.0))
+
+    def test_chamfer_reaching_an_edge(self):
+        self.assertEqual(plan(opening(clearance=2.3), chamfer=0.4).obstacles,
+                         ('Hole 1 on Plate. The 0.40 mm chamfer on the Ø4.00 seat reaches a nearby edge '
+                          'at the opening.',))
+        self.assertEqual(plan(opening(clearance=2.3)).obstacles, ())
+
+    def test_a_seat_reaching_an_edge_names_only_the_seat(self):
+        self.assertEqual(plan(opening(clearance=2.0), chamfer=0.4).obstacles,
+                         ('Hole 1 on Plate. The Ø4.00 seat reaches a nearby edge at the opening.',))
+
+    def test_overlapping_chamfers(self):
+        first = opening(center=(40.0, 20.0, 18.0))
+        second = opening(ordinal=2, center=(44.5, 20.0, 18.0))
+        self.assertEqual(plan(first, second, chamfer=0.4).obstacles,
+                         ('The chamfers of the seats for holes 1 and 2 overlap at the opening.',))
+        self.assertEqual(plan(first, second).obstacles, ())
+
+    def test_overlapping_seats_name_only_the_seats(self):
+        first = opening(center=(40.0, 20.0, 18.0))
+        second = opening(ordinal=2, center=(43.5, 20.0, 18.0))
+        self.assertEqual(plan(first, second, chamfer=0.4).obstacles,
+                         ('The seats for holes 1 and 2 overlap at the opening.',))
+
+    def test_chamfer_out_of_range(self):
+        for chamfer in (0.05, 2.5):
+            result = plan(M3, chamfer=chamfer)
+            self.assertIn('Chamfer size must be between 0.10 and 2.00 mm.', result.obstacles)
+            self.assertFalse(result.can_apply)
+        for chamfer in (0.1, 2.0):
+            self.assertEqual(plan(M3, chamfer=chamfer).obstacles, ())
+
+    def test_thin_wall_note_ignores_the_chamfer(self):
+        result = plan(opening(clearance=2.5), chamfer=0.4)
+        self.assertEqual(result.notes, plan(opening(clearance=2.5)).notes)
+        self.assertEqual(result.notes, ('Hole 1 on Plate. The opening has 0.50 mm of material to the nearest '
+                                        'edge. The catalog specifies 1.60 mm.',))
+        self.assertEqual(result.obstacles, ())
+
     def test_rim_errors_come_first(self):
         result = plan(opening(clearance=2.0), rim_errors=('Hole 3 on Plate. X',))
         self.assertEqual(result.obstacles[0], 'Hole 3 on Plate. X')
@@ -94,6 +138,10 @@ class SummaryLinesTest(unittest.TestCase):
     def test_lists_each_seat(self):
         self.assertEqual(summary_lines(plan(M3, M4)),
                          ['Hole 1 · M3 × 0.50 · Ø4.00 × 6.70 mm', 'Hole 2 · M4 × 0.70 · Ø5.70 × 9.10 mm'])
+
+    def test_lists_each_seat_with_its_chamfer(self):
+        self.assertEqual(summary_lines(plan(M3, chamfer=0.4)),
+                         ['Hole 1 · M3 × 0.50 · Ø4.00 × 6.70 mm · 0.40 mm chamfer'])
 
     def test_obstacles_then_notes(self):
         lines = summary_lines(plan(opening(clearance=2.5), opening(ordinal=2, diameter=3.2,

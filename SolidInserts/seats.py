@@ -10,6 +10,8 @@ from .messages import SeatError, message
 SEAT_ATTRIBUTE_GROUP = 'SolidInserts'
 SEAT_ATTRIBUTE_NAME = 'seat'
 SEAT_NAME_PREFIX = 'SolidInserts · '
+CHAMFER_MIN_MM = 0.1
+CHAMFER_MAX_MM = 2.0
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,12 @@ class Seat:
     depth: float
     wall: float
     name: str
+    chamfer: float | None
+
+    @property
+    def mouth_diameter(self):
+        """The seat's diameter at the opening, widened by the chamfer on each side."""
+        return self.diameter + 2 * self.chamfer if self.chamfer else self.diameter
 
 
 @dataclass(frozen=True)
@@ -63,10 +71,15 @@ def coplanar_distance(a, b):
     return None
 
 
-def plan_seats(openings, series, thread_label, compensation_mm, rim_errors=()):
+def plan_seats(openings, series, thread_label, compensation_mm, rim_errors=(), chamfer_mm=None):
+    """Plans a seat per opening. chamfer_mm is the top-edge chamfer, or None for no chamfer."""
     obstacles = list(rim_errors)
     if not -1.0 <= compensation_mm <= 1.0:
         return SeatPlan((), tuple(obstacles + [message('compensation_range')]), ())
+    if chamfer_mm is not None and not CHAMFER_MIN_MM <= chamfer_mm <= CHAMFER_MAX_MM:
+        return SeatPlan((), tuple(obstacles + [message('chamfer_range', low=CHAMFER_MIN_MM,
+                                                                high=CHAMFER_MAX_MM)]), ())
+    chamfer = round_mm(chamfer_mm) if chamfer_mm is not None else None
     if not openings and not obstacles:
         return SeatPlan((), (message('select_rims'),), ())
 
@@ -91,27 +104,37 @@ def plan_seats(openings, series, thread_label, compensation_mm, rim_errors=()):
         wall = round_mm(hole.clearance - diameter / 2)
         if diameter <= hole.diameter + TOLERANCE_MM:
             obstacles.append(about_hole(message('seat_not_wider', seat=diameter, hole=hole.diameter)))
+        seat = Seat(hole, insert, diameter, depth, wall,
+                    message('insert_name', product=insert.product_name), chamfer)
         if wall <= TOLERANCE_MM:
             obstacles.append(about_hole(message('seat_reaches_edge', seat=diameter)))
+        elif hole.clearance - seat.mouth_diameter / 2 <= TOLERANCE_MM:
+            obstacles.append(about_hole(message('chamfer_reaches_edge', chamfer=chamfer, seat=diameter)))
         if not hole.can_deepen and depth + TOLERANCE_MM >= hole.bore_depth:
             obstacles.append(about_hole(message('seat_too_deep', depth=depth, bore=hole.bore_depth)))
         if TOLERANCE_MM < wall and wall + TOLERANCE_MM < insert.wall_mm:
             notes.append(about_hole(message('thin_wall', wall=wall, catalog=insert.wall_mm)))
-        seats.append(Seat(hole, insert, diameter, depth, wall,
-                          message('insert_name', product=insert.product_name)))
+        seats.append(seat)
 
     for index, seat in enumerate(seats):
         for other in seats[:index]:
             distance = coplanar_distance(seat.opening, other.opening)
-            if distance is not None and distance <= (seat.diameter + other.diameter) / 2 + TOLERANCE_MM:
+            if distance is None:
+                continue
+            if distance <= (seat.diameter + other.diameter) / 2 + TOLERANCE_MM:
                 obstacles.append(message('seats_overlap', first=other.opening.ordinal,
+                                         second=seat.opening.ordinal))
+            elif distance <= (seat.mouth_diameter + other.mouth_diameter) / 2 + TOLERANCE_MM:
+                obstacles.append(message('chamfers_overlap', first=other.opening.ordinal,
                                          second=seat.opening.ordinal))
     return SeatPlan(tuple(seats), tuple(obstacles), tuple(notes))
 
 
 def summary_lines(plan):
     lines = [message('seat_line', ordinal=seat.opening.ordinal, thread=seat.insert.thread,
-                     diameter=seat.diameter, depth=seat.depth) for seat in plan.seats]
+                     diameter=seat.diameter, depth=seat.depth)
+             + (message('seat_chamfer', chamfer=seat.chamfer) if seat.chamfer else '')
+             for seat in plan.seats]
     lines.extend(plan.obstacles)
     lines.extend(message('note_line', note=note) for note in plan.notes)
     return lines

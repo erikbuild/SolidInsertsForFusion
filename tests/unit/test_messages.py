@@ -32,6 +32,10 @@ class MessageTest(unittest.TestCase):
                                'For clearance holes, choose the screw size.'),
             'compensation_label': 'Diameter compensation',
             'compensation_tooltip': 'Adjustment to the seat diameter. Use 0 for the catalog dimension.',
+            'chamfer_label': 'Chamfer top edge',
+            'chamfer_tooltip': 'Adds a 45° lead-in at the seat opening so the insert starts straight.',
+            'chamfer_size_label': 'Chamfer size',
+            'chamfer_size_tooltip': 'How far the chamfer cuts into the face and down the seat wall.',
             'summary_label': 'Seats',
         }
         self.assertEqual({key: message(key) for key in expected}, expected)

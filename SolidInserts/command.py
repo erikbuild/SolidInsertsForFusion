@@ -1,5 +1,5 @@
 # ABOUTME: The Insert Seats command: a dialog that reads the selected hole rims, plans seats from the
-# ABOUTME: chosen insert type, thread and compensation, previews the seats and cuts them on OK.
+# ABOUTME: chosen insert type, thread, compensation and chamfer, previews the seats and cuts them on OK.
 import os
 import traceback
 
@@ -13,9 +13,11 @@ from .messages import SeatError, message
 from .openings import MM_PER_CM, read_openings
 from .openings_cache import OpeningsCache
 from .preview import SeatPreview
-from .seats import plan_seats, summary_html
+from .seats import CHAMFER_MAX_MM, CHAMFER_MIN_MM, plan_seats, summary_html
 
 CMD_ID = 'erikbuild_SolidInserts_insertSeats'
+CHAMFER_DEFAULT_MM = 0.4
+CHAMFER_STEP_MM = 0.05
 RESOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
 
 _handlers = []
@@ -78,10 +80,18 @@ def add_inputs(inputs):
         thread.listItems.add(choice, choice == AUTOMATIC)
     thread.tooltip = message('thread_tooltip')
 
-    # Limits and the initial value are centimetres; the step is in the spinner's millimetres.
+    # Fusion takes a spinner's limits, step and initial value in its own unit, millimetres here,
+    # although the API reference says centimetres. Its value reads back in centimetres.
     compensation = inputs.addFloatSpinnerCommandInput(
-        'compensation', message('compensation_label'), 'mm', -0.1, 0.1, 0.01, 0)
+        'compensation', message('compensation_label'), 'mm', -1.0, 1.0, 0.01, 0)
     compensation.tooltip = message('compensation_tooltip')
+
+    chamfer = inputs.addBoolValueInput('chamfer', message('chamfer_label'), True, '', True)
+    chamfer.tooltip = message('chamfer_tooltip')
+    chamfer_size = inputs.addFloatSpinnerCommandInput(
+        'chamfer_size', message('chamfer_size_label'), 'mm', CHAMFER_MIN_MM, CHAMFER_MAX_MM,
+        CHAMFER_STEP_MM, CHAMFER_DEFAULT_MM)
+    chamfer_size.tooltip = message('chamfer_size_tooltip')
 
     inputs.addTextBoxCommandInput('summary', message('summary_label'), '', 6, True)
 
@@ -94,7 +104,15 @@ def current_plan(inputs):
     series = Series(adsk.core.DropDownCommandInput.cast(inputs.itemById('series')).selectedItem.name)
     thread = adsk.core.DropDownCommandInput.cast(inputs.itemById('thread')).selectedItem.name
     compensation_cm = adsk.core.FloatSpinnerCommandInput.cast(inputs.itemById('compensation')).value
-    return plan_seats(openings, series, thread, round_mm(compensation_cm * MM_PER_CM), rim_errors)
+    chamfer, chamfer_size = chamfer_inputs(inputs)
+    chamfer_mm = round_mm(chamfer_size.value * MM_PER_CM) if chamfer.value else None
+    return plan_seats(openings, series, thread, round_mm(compensation_cm * MM_PER_CM), rim_errors,
+                      chamfer_mm=chamfer_mm)
+
+
+def chamfer_inputs(inputs):
+    return (adsk.core.BoolValueCommandInput.cast(inputs.itemById('chamfer')),
+            adsk.core.FloatSpinnerCommandInput.cast(inputs.itemById('chamfer_size')))
 
 
 def show_summary(inputs, plan):
@@ -132,6 +150,9 @@ class CommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
 class InputChangedHandler(adsk.core.InputChangedEventHandler):
     def notify(self, args):
         try:
+            if args.input.id == 'chamfer':
+                chamfer, chamfer_size = chamfer_inputs(args.inputs)
+                chamfer_size.isEnabled = chamfer.value
             if args.input.id != 'summary':
                 refresh_plan(args.inputs)
         except Exception:

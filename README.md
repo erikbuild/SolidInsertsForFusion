@@ -9,7 +9,7 @@
 
 Cut seats for heat-set threaded inserts at the rims of existing holes in Autodesk Fusion.
 
-Select the circular rim of each hole on the side where the insert goes. Choose a CNC Kitchen insert series and a screw thread, check the preview and click **OK**. Each seat becomes an editable sketch and extrude cut in the timeline. One undo removes the whole batch.
+Select the circular rim of each hole on the side where the insert goes. Choose a CNC Kitchen insert series and a screw thread, check the preview and click **OK**. Each seat becomes an editable sketch and extrude cut in the timeline, with a chamfer on its top edge unless you turn it off. One undo removes the whole batch.
 
 SolidInserts for Fusion is a port of [SolidInserts](https://github.com/NoOneExceptEnderk/SolidInserts) for SolidCraft by NoOneExceptEnderk.
 
@@ -31,7 +31,7 @@ To put the button in its own toolbar panel, set `use_custom_panel` to `true` in 
 
 1. Open **Solid › Create › Insert Seats**.
 2. Click the circular rim of each hole on the side where the insert goes. Click a selected rim again to remove it.
-3. Choose **Type**, **Screw thread** and **Diameter compensation**. The viewport shows each planned seat as a see-through cylinder, and **Seats** lists the diameter and depth of each seat and anything that blocks the batch.
+3. Choose **Type**, **Screw thread**, **Diameter compensation** and the top-edge chamfer. The viewport shows each planned seat as a see-through cylinder with a cone for its chamfer, and **Seats** lists the diameter, depth and chamfer of each seat and anything that blocks the batch.
 4. Click **OK**.
 
 ## Supported inserts
@@ -46,7 +46,7 @@ SolidInserts is an independent add-in with no affiliation with CNC Kitchen. The 
 
 Automatic sizing matches the hole diameter to a nominal thread diameter within ±0.05 mm. For clearance holes or tap drills, choose the screw size manually. For example, choose M3 for a Ø3.2 mm M3 clearance hole. One insert series applies to the batch. Automatic sizing can choose a different thread size for each hole.
 
-Seat depth equals insert length plus 1 mm. The diameter compensation defaults to zero and changes only the diameter. Print a test piece to fine-tune the fit. [CNC Kitchen dimensions and design guidelines](https://cnckitchen.com/s/CNCKitchen_Heat-Set-Insert-Dimensions-and-Design-Guidelines.pdf).
+Seat depth equals insert length plus 1 mm. The diameter compensation defaults to zero and changes only the diameter. **Chamfer top edge** is on by default and adds a 0.4 mm 45° lead-in at each seat opening; set **Chamfer size** from 0.1 to 2 mm. Print a test piece to fine-tune the fit. [CNC Kitchen dimensions and design guidelines](https://cnckitchen.com/s/CNCKitchen_Heat-Set-Insert-Dimensions-and-Design-Guidelines.pdf).
 
 ## What SolidInserts checks
 
@@ -55,6 +55,7 @@ SolidInserts accepts cylindrical holes with a circular, unchamfered entrance on 
 - The seat must be wider than the hole and must not reach a nearby edge at the opening. The **Seats** box adds a note when the material at the opening is thinner than the catalog recommends.
 - A through hole keeps a section of the original bore below the seat. A blind hole with a flat floor can be deepened to fit the insert.
 - Seats in one batch must not overlap.
+- With **Chamfer top edge** on, the chamfered opening must also clear nearby edges and the other seats.
 - After each cut, SolidInserts compares the removed volume with the expected volume and checks the seat floor, so a cut that meets an edge, a cavity or another hole is refused.
 - A hole inside a component gets its seat in the component, so every instance of that component shows it. Holes in linked components are edited in their own design.
 - A hole that already has a SolidInserts seat is refused. Edit that seat in the timeline instead.

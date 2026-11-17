@@ -1,5 +1,5 @@
-# ABOUTME: Shows planned seats in the viewport as see-through cylinders without changing the model,
-# ABOUTME: so the selected hole rims stay valid while the Insert Seats dialog is open.
+# ABOUTME: Shows planned seats in the viewport as see-through cylinders, with a cone for each chamfer,
+# ABOUTME: without changing the model, so the selected hole rims stay valid while the dialog is open.
 import adsk.core
 import adsk.fusion
 
@@ -29,20 +29,33 @@ class SeatPreview:
 
 
 def draw_seat(design, seat):
-    """Draws a seat as a cylinder in its rim's component, so it shows in every occurrence."""
+    """Draws a seat as a cylinder, below a cone for its chamfer, in its rim's component, so it shows
+    in every occurrence."""
     component = resolve_rim(design, seat.opening.rim_token).body.parentComponent
     opening = seat.opening
-    floor = tuple(center - outward * seat.depth for center, outward in zip(opening.center, opening.outward))
-    radius_cm = seat.diameter / 2 / MM_PER_CM
-    cylinder = adsk.fusion.TemporaryBRepManager.get().createCylinderOrCone(
-        cm_point(opening.center), radius_cm, cm_point(floor), radius_cm)
+    radius = seat.diameter / 2
+    top = opening.center
+    shapes = []
+    if seat.chamfer:
+        shoulder = below(opening, seat.chamfer)
+        shapes.append((top, seat.mouth_diameter / 2, shoulder, radius))
+        top = shoulder
+    shapes.append((top, radius, below(opening, seat.depth), radius))
     group = component.customGraphicsGroups.add()
-    graphics = group.addBRepBody(cylinder)
-    # A show-through colour keeps the seat visible inside the solid around it.
-    graphics.color = adsk.fusion.CustomGraphicsShowThroughColorEffect.create(
-        adsk.core.Color.create(*SEAT_COLOR, 255), SHOW_THROUGH_OPACITY)
-    graphics.isSelectable = False
+    for start, start_radius, end, end_radius in shapes:
+        shape = adsk.fusion.TemporaryBRepManager.get().createCylinderOrCone(
+            cm_point(start), start_radius / MM_PER_CM, cm_point(end), end_radius / MM_PER_CM)
+        graphics = group.addBRepBody(shape)
+        # A show-through colour keeps the seat visible inside the solid around it.
+        graphics.color = adsk.fusion.CustomGraphicsShowThroughColorEffect.create(
+            adsk.core.Color.create(*SEAT_COLOR, 255), SHOW_THROUGH_OPACITY)
+        graphics.isSelectable = False
     return group
+
+
+def below(opening, depth_mm):
+    """The point on the opening's axis depth_mm into the body."""
+    return tuple(center - outward * depth_mm for center, outward in zip(opening.center, opening.outward))
 
 
 def cm_point(point_mm):

@@ -1,13 +1,14 @@
-# ABOUTME: Cuts planned insert seats into Fusion bodies as editable sketches and extrusions,
-# ABOUTME: then checks that each cut touched one body, removed the expected material and left a floor.
+# ABOUTME: Cuts planned insert seats into Fusion bodies as editable sketches, extrusions and chamfers,
+# ABOUTME: checking that each cut touched one body, removed the expected material and left a floor.
 import json
 
 import adsk.core
 import adsk.fusion
 
-from .geometry import cut_direction, cut_volume_matches, expected_cut_volume_mm3, is_floor
+from .geometry import (TOLERANCE_MM, cut_direction, cut_volume_matches, expected_cut_volume_mm3, is_floor,
+                       norm, sub)
 from .messages import SeatError, message
-from .openings import MM_PER_CM, entrance_faces, mm_point, normal_at
+from .openings import MM_PER_CM, circle_of, entrance_faces, mm_point, normal_at
 from .seats import SEAT_ATTRIBUTE_GROUP, SEAT_ATTRIBUTE_NAME, SEAT_NAME_PREFIX
 
 MM3_PER_CM3 = 1000
@@ -53,9 +54,38 @@ def cut_seat(design, seat):
         'insert': seat.insert.product_name,
         'diameter_mm': seat.diameter,
         'depth_mm': seat.depth,
+        'chamfer_mm': seat.chamfer,
     }))
     check_cut(feature, body, volume_before, seat)
+    if seat.chamfer:
+        chamfer_mouth(component, feature, seat)
     return feature
+
+
+def chamfer_mouth(component, feature, seat):
+    """Chamfers the seat's mouth, the edge where the seat wall meets the face the hole opens onto."""
+    mouths = [edge for face in feature.sideFaces for edge in face.edges
+              if is_at(circle_of(edge), seat.opening.center)]
+    if len(mouths) != 1:
+        raise SeatError(message('chamfer_failed'))
+    edges = adsk.core.ObjectCollection.create()
+    edges.add(mouths[0])
+    chamfers = component.features.chamferFeatures
+    chamfer_input = chamfers.createInput2()
+    chamfer_input.chamferEdgeSets.addEqualDistanceChamferEdgeSet(
+        edges, adsk.core.ValueInput.createByString(f'{seat.chamfer} mm'), False)
+    try:
+        chamfer = chamfers.add(chamfer_input)
+    except RuntimeError:
+        chamfer = None
+    if chamfer is None:
+        raise SeatError(message('chamfer_failed'))
+    chamfer.name = SEAT_NAME_PREFIX + message('chamfer_name', name=seat.name)
+    return chamfer
+
+
+def is_at(circle, center_mm):
+    return circle is not None and norm(sub(circle.center, center_mm)) <= TOLERANCE_MM
 
 
 def resolve_rim(design, rim_token):

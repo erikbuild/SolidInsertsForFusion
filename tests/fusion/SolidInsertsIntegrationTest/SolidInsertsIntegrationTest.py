@@ -1,5 +1,6 @@
 # ABOUTME: In-Fusion integration test for SolidInserts: builds real fixture geometry, reads hole
 # ABOUTME: openings, previews and cuts seats with the add-in code, and logs PASS/FAIL lines.
+import dataclasses
 import importlib
 import os
 import sys
@@ -109,13 +110,27 @@ def fresh_fixture(app):
     return design, support.build_fixture(design)
 
 
-def cut_rims(addin, design, rims, series=None):
-    """Plans seats on rims with Automatic sizing and no compensation, then cuts them."""
+def plan_rims(addin, design, rims, series=None, chamfer=None):
+    """Plans seats on rims with Automatic sizing and no compensation."""
     found, errors = addin.openings.read_openings(design, rims)
-    plan = addin.seats.plan_seats(found, series or addin.catalog.Series.STANDARD,
-                                  addin.catalog.AUTOMATIC, 0.0, errors)
+    return addin.seats.plan_seats(found, series or addin.catalog.Series.STANDARD,
+                                  addin.catalog.AUTOMATIC, 0.0, errors, chamfer_mm=chamfer)
+
+
+def cut_rims(addin, design, rims, series=None, chamfer=None):
+    """Plans seats on rims with Automatic sizing and no compensation, then cuts them."""
+    plan = plan_rims(addin, design, rims, series, chamfer)
     support.check(plan.can_apply, 'seat plan can apply {}'.format(plan.obstacles))
     return addin.cuts.cut_seats(design, plan)
+
+
+def chamfer_distance(component, name):
+    """The distance parameter of the named chamfer feature in component, or None."""
+    feature = component.features.chamferFeatures.itemByName(name)
+    if feature is None or feature.edgeSets.count != 1:
+        return None
+    edge_set = adsk.fusion.EqualDistanceChamferEdgeSet.cast(feature.edgeSets.item(0))
+    return edge_set.distance if edge_set else None
 
 
 def dropped_mm3(volume_before_cm3, body):
@@ -187,18 +202,59 @@ def test_bracket(app, addin):
     occurrences = [fixture.occurrences['bracket_a'], fixture.occurrences['bracket_b']]
     before = [occurrence.bRepBodies.item(0).volume for occurrence in occurrences]
     timeline_before = design.timeline.count
-    cut_rims(addin, design, [fixture.rims['bracket_a']])
+    cut_rims(addin, design, [fixture.rims['bracket_a']], chamfer=0.4)
     drops = [dropped_mm3(volume, occurrence.bRepBodies.item(0)) for volume, occurrence in zip(before, occurrences)]
-    support.check(all(close(drop, 36.835, 0.02) for drop in drops),
-                  'both bracket occurrences lose {}'.format(['{:.3f}'.format(drop) for drop in drops]))
-    support.check(design.timeline.count - timeline_before == 2,
-                  'bracket seat adds 2 timeline items (+{})'.format(design.timeline.count - timeline_before))
+    support.check(all(close(drop, 37.907, 0.02) for drop in drops),
+                  'both bracket occurrences lose the chamfered seat {}'.format(
+                      ['{:.3f}'.format(drop) for drop in drops]))
+    support.check(design.timeline.count - timeline_before == 3,
+                  'chamfered bracket seat adds 3 timeline items (+{})'.format(design.timeline.count - timeline_before))
+
+
+def test_chamfered_seats(app, addin):
+    check = support.check
+    design, fixture = fresh_fixture(app)
+    plate = fixture.bodies['Plate']
+    before = plate.volume
+    cut_rims(addin, design, [fixture.rims['h1'], fixture.rims['h2']], chamfer=0.4)
+    check(close(dropped_mm3(before, plate), 157.263, 0.02),
+          'chamfered h1 and h2 remove {:.3f} mm3 (expected 157.263)'.format(dropped_mm3(before, plate)))
+    for name in ('SolidInserts · Chamfer Insert M3 × 5.7', 'SolidInserts · Chamfer Insert M4 × 8.1'):
+        distance = chamfer_distance(design.rootComponent, name)
+        check(distance is not None and distance.expression == '0.4 mm',
+              '{} is one 0.4 mm edge set ({!r})'.format(name, distance.expression if distance else None))
+
+
+def test_chamfer_clearance(app, addin):
+    design, fixture = fresh_fixture(app)
+    too_wide = plan_rims(addin, design, [fixture.rims['h5']], chamfer=0.5)
+    support.check(list(too_wide.obstacles) == ['Hole 1 on Plate. The 0.50 mm chamfer on the Ø4.00 seat reaches '
+                                               'a nearby edge at the opening.'],
+                  'a 0.5 mm chamfer on h5 reaches the plate edge {}'.format(too_wide.obstacles))
+    fits = plan_rims(addin, design, [fixture.rims['h5']], chamfer=0.4)
+    support.check(fits.can_apply, 'a 0.4 mm chamfer on h5 fits {}'.format(fits.obstacles))
+
+
+def test_chamfer_failure(app, addin):
+    # Fusion runs a chamfer past a nearby face edge without failing, but refuses one longer than
+    # the 6.7 mm seat wall it cuts down.
+    design, fixture = fresh_fixture(app)
+    plan = plan_rims(addin, design, [fixture.rims['h1']], chamfer=0.4)
+    plan = dataclasses.replace(plan, seats=tuple(dataclasses.replace(seat, chamfer=7.0) for seat in plan.seats))
+    try:
+        addin.cuts.cut_seats(design, plan)
+        raised = None
+    except addin.messages.SeatError as error:
+        raised = str(error)
+    support.check(raised == 'Hole 1 on Plate. The chamfer could not be cut at the seat opening. '
+                            'Make it smaller or turn it off.',
+                  'a 7 mm chamfer down the 6.7 mm seat wall is refused {!r}'.format(raised))
 
 
 def test_inch_display_units(app, addin):
     design, fixture = fresh_fixture(app)
     design.fusionUnitsManager.distanceDisplayUnits = adsk.fusion.DistanceUnits.InchDistanceUnits
-    feature = cut_rims(addin, design, [fixture.rims['h1']])[0]
+    feature = cut_rims(addin, design, [fixture.rims['h1']], chamfer=0.4)[0]
     diameters = [adsk.fusion.SketchDiameterDimension.cast(dimension)
                  for dimension in profile_sketch(feature).sketchDimensions]
     diameter_cm = [dimension.parameter.value for dimension in diameters if dimension]
@@ -207,6 +263,9 @@ def test_inch_display_units(app, addin):
     support.check(len(diameter_cm) == 1 and close(diameter_cm[0], 0.4) and close(abs(depth.value), 0.67),
                   'inch display units keep Ø4 × 6.7 mm: {} cm, {} cm ({!r})'.format(
                       diameter_cm, depth.value, depth.expression))
+    chamfer = chamfer_distance(design.rootComponent, 'SolidInserts · Chamfer Insert M3 × 5.7')
+    support.check(chamfer is not None and close(chamfer.value, 0.04),
+                  'inch display units keep the 0.4 mm chamfer: {} cm'.format(chamfer.value if chamfer else None))
 
 
 def box_mm(graphics):
@@ -255,10 +314,32 @@ def test_preview(app, addin):
           'clear removes the preview groups')
 
 
+def test_preview_chamfer(app, addin):
+    check = support.check
+    design, fixture = fresh_fixture(app)
+    root = design.rootComponent
+    root_before = root.customGraphicsGroups.count
+    plan = plan_rims(addin, design, [fixture.rims['h1']], chamfer=0.4)
+    preview = addin.preview.SeatPreview()
+    preview.show(design, plan)
+    groups = groups_after(root, root_before)
+    bodies = [groups[0].item(index) for index in range(groups[0].count)] if len(groups) == 1 else []
+    check(len(bodies) == 2 and not any(body.isSelectable for body in bodies),
+          'chamfered h1 preview is one group of 2 unselectable bodies ({} groups, {} bodies)'.format(
+              len(groups), len(bodies)))
+    expected = [('cone', (7.6, 12.4, 7.6, 12.4, 17.6, 18)), ('cylinder', (8, 12, 8, 12, 11.3, 17.6))]
+    for (name, box), body in zip(expected, bodies):
+        actual = box_mm(body)
+        check(close(actual, box, 0.05), 'chamfered h1 preview {} box {} mm (expected {})'.format(
+            name, tuple(round(value, 3) for value in actual), box))
+    preview.clear()
+
+
 def test_cuts(app):
     addin = AddIn()
-    for case in (test_two_seats, test_single_seats, test_cavity, test_bracket, test_inch_display_units,
-                 test_preview):
+    for case in (test_two_seats, test_single_seats, test_cavity, test_bracket, test_chamfered_seats,
+                 test_chamfer_clearance, test_chamfer_failure, test_inch_display_units, test_preview,
+                 test_preview_chamfer):
         try:
             case(app, addin)
         except Exception:

@@ -1,5 +1,5 @@
 # ABOUTME: End-to-end Fusion test for the running SolidInserts add-in: preselects two hole rims, opens Insert
-# ABOUTME: Seats, checks the preview through a Type change, presses OK, and checks the seats and one Undo.
+# ABOUTME: Seats, checks the preview through Type and chamfer changes, presses OK, and checks the seats and one Undo.
 import importlib
 import os
 import sys
@@ -20,15 +20,18 @@ STEP_EVENT = 'SolidInsertsCommandTestStep'
 STANDARD = 'Standard'
 VORON = 'VORON M3 × 5 × 4'
 PREVIEW_TIMEOUT_S = 3.0
-# The preview graphics groups each dialog step waits for, and the check it logs.
+# The preview bodies each dialog step waits for, and the check it logs. A chamfered seat draws a cone
+# and a cylinder.
 STEP_PREVIEWS = {
-    'preselected': (2, 'the preview draws both seats ({} groups)'),
-    'voron': (0, 'VORON clears the preview ({} groups)'),
-    'standard': (2, 'switching back to Standard draws both seats again ({} groups)'),
+    'preselected': (4, 'the preview draws both chamfered seats ({} bodies)'),
+    'voron': (0, 'VORON clears the preview ({} bodies)'),
+    'standard': (4, 'switching back to Standard draws both chamfered seats again ({} bodies)'),
+    'no_chamfer': (2, 'unchecking Chamfer top edge draws the seats without cones ({} bodies)'),
+    'chamfer': (4, 'checking Chamfer top edge draws the cones again ({} bodies)'),
 }
-EXPECTED_NAMES = ['Profile Insert M3 × 5.7', 'SolidInserts · Insert M3 × 5.7',
-                  'Profile Insert M4 × 8.1', 'SolidInserts · Insert M4 × 8.1']
-EXPECTED_REMOVED_MM3 = 36.835 + 117.856
+EXPECTED_NAMES = ['Profile Insert M3 × 5.7', 'SolidInserts · Insert M3 × 5.7', 'SolidInserts · Chamfer Insert M3 × 5.7',
+                  'Profile Insert M4 × 8.1', 'SolidInserts · Insert M4 × 8.1', 'SolidInserts · Chamfer Insert M4 × 8.1']
+EXPECTED_REMOVED_MM3 = 157.263
 
 _handlers = []
 _state = {'design': None, 'command': None, 'timeline': 0, 'volume': 0.0, 'undo_sent': False,
@@ -46,6 +49,33 @@ def plate_volume():
 
 def preview_groups():
     return _state['design'].rootComponent.customGraphicsGroups.count
+
+
+def preview_bodies():
+    groups = _state['design'].rootComponent.customGraphicsGroups
+    return sum(groups.item(index).count for index in range(groups.count))
+
+
+def dialog_input(input_id):
+    return _state['command'].commandInputs.itemById(input_id)
+
+
+def chamfer_inputs():
+    return (adsk.core.BoolValueCommandInput.cast(dialog_input('chamfer')),
+            adsk.core.FloatSpinnerCommandInput.cast(dialog_input('chamfer_size')))
+
+
+def summary_text():
+    return adsk.core.TextBoxCommandInput.cast(dialog_input('summary')).formattedText
+
+
+def spinner_mm(input_id):
+    """A length spinner's value, minimum and maximum in millimetres, and the expression it shows."""
+    spinner = adsk.core.FloatSpinnerCommandInput.cast(dialog_input(input_id))
+    if spinner is None:
+        return None, None
+    values = (spinner.value, spinner.minimumValue, spinner.maximumValue)
+    return tuple(round(value * 10, 3) for value in values), spinner.expression
 
 
 def choose_series(name):
@@ -99,21 +129,37 @@ class StepHandler(adsk.core.CustomEventHandler):
     def notify(self, args):
         step = args.additionalInfo
         expected, label = STEP_PREVIEWS[step]
-        groups = preview_groups()
-        if groups != expected and time.monotonic() < _state['deadline']:
+        bodies = preview_bodies()
+        if bodies != expected and time.monotonic() < _state['deadline']:
             adsk.core.Application.get().fireCustomEvent(STEP_EVENT, step)
             return
-        support.check(groups == expected, label.format(groups))
+        support.check(bodies == expected, label.format(bodies))
+        chamfer, chamfer_size = chamfer_inputs()
         if step == 'preselected':
-            holes = adsk.core.SelectionCommandInput.cast(_state['command'].commandInputs.itemById('holes'))
+            holes = adsk.core.SelectionCommandInput.cast(dialog_input('holes'))
             support.check(holes is not None and holes.selectionCount == 2,
                           'both preselected rims are in Holes ({})'.format(holes.selectionCount if holes else '-'))
+            support.check(chamfer is not None and chamfer.value, 'Chamfer top edge starts on')
+            for input_id, expected in (('chamfer_size', (0.4, 0.1, 2.0)), ('compensation', (0.0, -1.0, 1.0))):
+                actual, expression = spinner_mm(input_id)
+                support.check(actual == expected, '{} value, minimum and maximum are {} mm, showing {!r} '
+                                                  '(expected {} mm)'.format(input_id, actual, expression, expected))
             choose_series(VORON)
             start_step('voron')
         elif step == 'voron':
             choose_series(STANDARD)
             start_step('standard')
+        elif step == 'standard':
+            chamfer.value = False
+            start_step('no_chamfer')
+        elif step == 'no_chamfer':
+            support.check(not chamfer_size.isEnabled, 'unchecking Chamfer top edge disables Chamfer size')
+            support.check('chamfer' not in summary_text(),
+                          'the summary has no chamfer when it is off: {}'.format(summary_text()))
+            chamfer.value = True
+            start_step('chamfer')
         else:
+            support.check(chamfer_size.isEnabled, 'checking Chamfer top edge enables Chamfer size')
             pressed = _state['command'].doExecute(True)
             support.check(pressed, 'OK pressed from the script')
             if not pressed:
@@ -126,7 +172,7 @@ class TerminatedHandler(adsk.core.ApplicationCommandEventHandler):
         _, ui = app_ui()
         if args.commandId == CMD_ID:
             names = new_timeline_names()
-            support.check(names == EXPECTED_NAMES, 'timeline gains the two seats {}'.format(names))
+            support.check(names == EXPECTED_NAMES, 'timeline gains the two chamfered seats {}'.format(names))
             removed = (_state['volume'] - plate_volume()) * 1000
             support.check(abs(removed - EXPECTED_REMOVED_MM3) <= 0.02,
                           'Plate loses {:.3f} mm3 (expected {:.3f})'.format(removed, EXPECTED_REMOVED_MM3))

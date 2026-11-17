@@ -158,9 +158,12 @@ def bore_edges(wall):
 def clearance_mm(rim):
     """Nearest distance from the rim centre to the other edges of the entrance face. It is
     measured on the selected rim itself, because Fusion cannot measure the native edges of a
-    component that is not the root; a distance is the same in either space."""
+    component that is not the root; a distance is the same in either space. Each edge is
+    measured from the rim edge and the rim radius added, which is exact for edges of the face
+    around the hole; Fusion measures a point against a straight edge as if the edge ran on
+    past its ends."""
     plane, wall = entrance_faces(rim)
-    center = adsk.core.Circle3D.cast(rim.geometry).center
+    radius_mm = adsk.core.Circle3D.cast(rim.geometry).radius * MM_PER_CM
     wall_edges = list(wall.edges)
     measure = adsk.core.Application.get().measureManager
     distances = []
@@ -168,7 +171,7 @@ def clearance_mm(rim):
         if any(edge == other for other in wall_edges):
             continue
         try:
-            distances.append(measure.measureMinimumDistance(center, edge).value * MM_PER_CM)
+            distances.append(measure.measureMinimumDistance(rim, edge).value * MM_PER_CM + radius_mm)
         except RuntimeError:
             raise SeatError(message('clearance_unknown'))
     if not distances:

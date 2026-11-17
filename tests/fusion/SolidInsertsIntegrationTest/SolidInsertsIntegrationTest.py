@@ -52,7 +52,7 @@ def test_openings(design, fixture, openings, seats):
     check(bottom is not None and close(bottom.center[2], 0.0) and close(bottom.outward, (0.0, 0.0, -1.0)),
           'h2 bottom rim faces down {}'.format(bottom))
 
-    for name, clearance in [('h5', 2.5), ('h6', 2.0)]:
+    for name, clearance in [('h5', 2.5), ('h6', 2.0), ('pocket', 5.0)]:
         found, _ = read_one(openings, design, rims[name])
         check(found is not None and close(found.clearance, clearance),
               '{} clearance {} -> {}'.format(name, clearance, found and found.clearance))
@@ -175,6 +175,7 @@ def test_single_seats(app, addin):
         ('h2_bottom', 'Plate', None, 117.856, 9.1),
         ('thin', 'ThinPlate', addin.catalog.Series.SHORT, 21.991, 1.0),
         ('h3', 'Plate', None, 30.310, 11.3),
+        ('pocket', 'PocketBlock', None, 36.835, 3.3),
     ]
     for rim_name, body_name, series, removed_mm3, floor_z_mm in cases:
         design, fixture = fresh_fixture(app)

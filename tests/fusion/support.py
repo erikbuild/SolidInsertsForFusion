@@ -93,6 +93,18 @@ def hole(body, x, y, top_z, diameter, depth=None):
             adsk.fusion.ExtentDirections.NegativeExtentDirection, [body])
 
 
+def pocket(body, x0, y0, x1, y1, top_z, depth):
+    """Cuts a rectangular blind pocket depth mm deep, straight down from top_z."""
+    component = body.parentComponent
+    sketch = component.sketches.add(plane_at(component, top_z))
+    sketch.sketchCurves.sketchLines.addTwoPointRectangle(
+        adsk.core.Point3D.create(cm(x0), cm(y0), 0),
+        adsk.core.Point3D.create(cm(x1), cm(y1), 0))
+    extrude(component, sketch.profiles.item(0),
+            adsk.fusion.FeatureOperations.CutFeatureOperation, cm(depth),
+            adsk.fusion.ExtentDirections.NegativeExtentDirection, [body])
+
+
 def rim(body, center_mm, diameter_mm):
     """The circular edge of body with this centre and diameter (proxy-aware)."""
     target = adsk.core.Point3D.create(*(cm(value) for value in center_mm))
@@ -230,6 +242,16 @@ def build_fixture(design):
     fixture.occurrences.update({'bracket_a': bracket_a, 'bracket_b': bracket_b})
     fixture.rims['bracket_a'] = rim(bracket_a.bRepBodies.item(0), (10, 65, 10), 3)
     fixture.rims['bracket_b'] = rim(bracket_b.bRepBodies.item(0), (40, 65, 10), 3)
+
+    # The pocket's left side, extended past its end, passes 2 mm from the hole centre, but the
+    # nearest real edge is the block's front edge, 5 mm away.
+    pocket_part = root.occurrences.addNewComponent(place(130, 0, 0))
+    pocket_part.component.name = 'PocketPart'
+    pocket_body = box(pocket_part.component, 0, 0, 0, 40, 30, 10, 'PocketBlock')
+    pocket(pocket_body, 15, 10, 35, 25, 10, 3)
+    hole(pocket_body, 13, 5, 10, 3, 7)
+    fixture.bodies['PocketBlock'] = pocket_part.bRepBodies.item(0)
+    fixture.rims['pocket'] = rim(pocket_part.bRepBodies.item(0), (143, 5, 10), 3)
 
     perforated = box(root, 0, 100, 0, 100, 200, 10, 'Perforated')
     grid = [(12.5 + 15 * i, 112.5 + 15 * j) for j in range(6) for i in range(6)]
